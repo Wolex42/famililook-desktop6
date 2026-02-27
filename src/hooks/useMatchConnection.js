@@ -20,13 +20,17 @@ export function useMatchConnection() {
   const [consentRequired, setConsentRequired] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [photosReady, setPhotosReady] = useState(false);
-  const [analyzing, setAnalyzing] = useState(null); // { progress, step }
-  const [countdown, setCountdown] = useState(null); // seconds or null
+  const [analyzing, setAnalyzing] = useState(null);
+  const [countdown, setCountdown] = useState(null);
   const [results, setResults] = useState(null);
 
   const wsRef = useRef(null);
   const statusRef = useRef(status);
   statusRef.current = status;
+
+  // Use a ref for the message handler so the WebSocket always calls the latest version
+  const playerIdRef = useRef(playerId);
+  playerIdRef.current = playerId;
 
   const send = useCallback((type, data = {}) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -54,7 +58,7 @@ export function useMatchConnection() {
 
       case 'player_joined':
         setPlayers(data.players || []);
-        if (data.player_id && !playerId) {
+        if (data.player_id && !playerIdRef.current) {
           setPlayerId(data.player_id);
         }
         setStatus(STATUS.CONNECTED);
@@ -69,12 +73,10 @@ export function useMatchConnection() {
         break;
 
       case 'consent_granted':
-        // A player consented — game is starting, all players should move to upload
         setGameStarted(true);
         break;
 
       case 'photo_received':
-        // Update which players have photos
         break;
 
       case 'all_photos_in':
@@ -103,11 +105,15 @@ export function useMatchConnection() {
       default:
         break;
     }
-  }, [playerId]);
+  }, []); // No dependencies — uses refs for mutable values
 
   const connect = useCallback((onReady) => {
+    // Close previous connection cleanly
     if (wsRef.current) {
-      wsRef.current.close();
+      const old = wsRef.current;
+      wsRef.current = null;
+      old.onclose = null; // Prevent stale onclose from firing
+      old.close();
     }
 
     setStatus(STATUS.CONNECTING);
@@ -128,7 +134,8 @@ export function useMatchConnection() {
     };
 
     ws.onclose = () => {
-      if (statusRef.current !== STATUS.DISCONNECTED) {
+      // Only update status if this is still the active WebSocket
+      if (wsRef.current === ws) {
         setStatus(STATUS.DISCONNECTED);
       }
     };
@@ -150,7 +157,6 @@ export function useMatchConnection() {
   }, [send]);
 
   const uploadPhoto = useCallback((photoBase64) => {
-    // Strip data URL prefix, send raw base64
     const raw = photoBase64.includes(',')
       ? photoBase64.split(',')[1]
       : photoBase64;
