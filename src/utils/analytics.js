@@ -68,6 +68,32 @@ class Analytics {
     });
   }
 
+  // --- Conversion funnel events ---
+
+  trackEmailCaptured(context) {
+    this.track('email_captured', { context });
+  }
+
+  trackShareInitiated(platform, contentType) {
+    this.track('share_initiated', { platform, contentType });
+  }
+
+  trackShareCompleted(platform, contentType) {
+    this.track('share_completed', { platform, contentType });
+  }
+
+  trackModeSelected(mode) {
+    this.track('mode_selected', { mode });
+  }
+
+  trackResultViewed(percentage, chemistryLabel) {
+    this.track('result_viewed', { percentage, chemistryLabel });
+  }
+
+  trackCrossProductClicked(targetProduct) {
+    this.track('cross_product_clicked', { sourceProduct: 'familimatch', targetProduct });
+  }
+
   // Core tracking — consent-gated
   track(eventType, data) {
     if (!isConsentGiven()) return;

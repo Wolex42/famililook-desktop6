@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 
 const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
 const FAMILIMATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
@@ -33,6 +33,68 @@ import { useConsent } from '../state/ConsentContext';
 import { useMatch } from '../state/MatchContext';
 import ConsentModal from '../components/ConsentModal';
 import { analytics } from '../utils/analytics';
+import { API_BASE, API_KEY } from '../utils/config';
+
+const SUBSCRIBE_KEY = 'fl:email-captured';
+
+function EmailCapture({ context, heading, subtext }) {
+  const [email, setEmail] = useState('');
+  const [status, setStatus] = useState(() =>
+    localStorage.getItem(SUBSCRIBE_KEY) ? 'already' : 'idle'
+  );
+
+  const handleSubmit = useCallback(async (e) => {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!trimmed || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmed)) { setStatus('invalid'); return; }
+    setStatus('submitting');
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (API_KEY) headers['X-API-Key'] = API_KEY;
+      const res = await fetch(`${API_BASE}/subscribe`, {
+        method: 'POST', headers,
+        body: JSON.stringify({ email: trimmed, product: 'familimatch', context }),
+      });
+      if (res.ok) {
+        setStatus('success');
+        localStorage.setItem(SUBSCRIBE_KEY, JSON.stringify({ email: trimmed, ts: Date.now() }));
+        analytics.trackEmailCaptured(context);
+      } else { setStatus('error'); }
+    } catch { setStatus('error'); }
+  }, [email, context]);
+
+  if (status === 'already' || status === 'success') {
+    return (
+      <div className="text-center py-3">
+        <p className="text-sm text-gray-500">
+          {status === 'success' ? "You're on the list!" : "You're already signed up."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full max-w-sm mx-auto text-center">
+      <p className="text-sm font-semibold text-white mb-1">{heading}</p>
+      <p className="text-xs text-gray-500 mb-3">{subtext}</p>
+      <form onSubmit={handleSubmit} className="flex gap-2">
+        <input
+          type="email" placeholder="your@email.com" value={email}
+          onChange={(e) => { setEmail(e.target.value); if (status === 'invalid') setStatus('idle'); }}
+          className={`flex-1 px-3 py-2.5 rounded-xl bg-white/5 text-white text-sm outline-none min-h-[44px] border ${status === 'invalid' ? 'border-red-500' : 'border-white/10'}`}
+        />
+        <button type="submit" disabled={status === 'submitting'}
+          className="px-5 py-2.5 rounded-xl font-semibold text-sm text-black min-h-[44px] whitespace-nowrap disabled:opacity-60"
+          style={{ background: 'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)' }}
+        >
+          {status === 'submitting' ? 'Joining...' : 'Join'}
+        </button>
+      </form>
+      {status === 'invalid' && <p className="text-xs text-red-500 mt-1">Please enter a valid email</p>}
+      {status === 'error' && <p className="text-xs text-red-500 mt-1">Something went wrong — try again</p>}
+    </div>
+  );
+}
 
 const MODE_CARDS = [
   {
@@ -286,6 +348,15 @@ export default function LandingPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Email Capture */}
+      <div className="relative z-10 w-full max-w-2xl mt-12">
+        <EmailCapture
+          context="match_tournaments_waitlist"
+          heading="Coming soon: tournaments & challenges"
+          subtext="Join the waitlist for competitive modes and leaderboards"
+        />
       </div>
 
       <div className="relative z-10 mt-12 flex gap-6 text-xs text-gray-700">

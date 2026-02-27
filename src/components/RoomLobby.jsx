@@ -180,21 +180,21 @@ export default function RoomLobby({ connection, onRoomReady }) {
             value={joinCode}
             onChange={e => setJoinCode(e.target.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase())}
             onKeyDown={e => {
-              if (e.key === 'Enter' && joinCode.length >= 4) {
+              if (e.key === 'Enter' && joinCode.length >= 6) {
                 connection.connect();
                 setTimeout(() => connection.joinRoom(playerName.trim(), joinCode.trim()), 500);
                 setLobbyMode('join');
               }
             }}
-            placeholder="0000"
-            maxLength={4}
+            placeholder="ABC123"
+            maxLength={6}
             autoFocus
-            className={`${inputCls} text-center text-4xl tracking-[0.5em] font-black`}
+            className={`${inputCls} text-center text-3xl tracking-[0.3em] font-black`}
           />
         </div>
 
         <GradientBtn
-          disabled={joinCode.length < 4}
+          disabled={joinCode.length < 6}
           onClick={() => {
             connection.connect();
             setTimeout(() => connection.joinRoom(playerName.trim(), joinCode.trim()), 500);
