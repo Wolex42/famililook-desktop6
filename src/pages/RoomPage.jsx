@@ -98,6 +98,18 @@ export default function RoomPage() {
     if (connection.consentRequired && !consent.bipaConsented) setShowConsent(true);
   }, [connection.consentRequired, consent.bipaConsented]);
 
+  // When host starts the game (consent_granted broadcast), move participant to upload
+  useEffect(() => {
+    if (connection.gameStarted && phase === 'lobby' && !connection.isHost) {
+      if (!consent.bipaConsented) {
+        setShowConsent(true);
+      } else {
+        connection.grantConsent();
+        setPhase('upload');
+      }
+    }
+  }, [connection.gameStarted, phase, connection.isHost, consent.bipaConsented]);
+
   useEffect(() => {
     if (connection.analyzing) setPhase('analyzing');
   }, [connection.analyzing]);

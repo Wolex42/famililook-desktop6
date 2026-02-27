@@ -18,6 +18,7 @@ export function useMatchConnection() {
 
   // Server-push events
   const [consentRequired, setConsentRequired] = useState(false);
+  const [gameStarted, setGameStarted] = useState(false);
   const [photosReady, setPhotosReady] = useState(false);
   const [analyzing, setAnalyzing] = useState(null); // { progress, step }
   const [countdown, setCountdown] = useState(null); // seconds or null
@@ -68,7 +69,8 @@ export function useMatchConnection() {
         break;
 
       case 'consent_granted':
-        // Another player consented
+        // A player consented — game is starting, all players should move to upload
+        setGameStarted(true);
         break;
 
       case 'photo_received':
@@ -170,6 +172,7 @@ export function useMatchConnection() {
     setCountdown(null);
     setPhotosReady(false);
     setConsentRequired(false);
+    setGameStarted(false);
     setStatus(STATUS.DISCONNECTED);
     if (wsRef.current) {
       wsRef.current.close();
@@ -195,6 +198,7 @@ export function useMatchConnection() {
     players,
     error,
     consentRequired,
+    gameStarted,
     photosReady,
     analyzing,
     countdown,
