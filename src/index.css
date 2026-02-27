@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Safe area insets for iOS notch/Dynamic Island */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: #0A0A0F;
+  color: #ffffff;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Glass morphism utilities ─────────────────────────────────────── */
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .glass-md {
+    background: rgba(255, 255, 255, 0.09);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  .glass-strong {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+
+  /* Gradient text helper */
+  .text-gradient-violet {
+    background: linear-gradient(135deg, #a78bfa 0%, #f472b6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #0a84ff 0%, #5e5ce6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+/* ── Dot bounce animation (waiting states) ────────────────────────── */
+@keyframes dotBounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.35; }
+  40%           { transform: scale(1.0); opacity: 1; }
+}
+
+.dot-bounce { animation: dotBounce 1.4s ease-in-out infinite; }
+.dot-bounce-1 { animation-delay: 0s; }
+.dot-bounce-2 { animation-delay: 0.16s; }
+.dot-bounce-3 { animation-delay: 0.32s; }
+
+/* ── Pulse ring (countdown) ───────────────────────────────────────── */
+@keyframes pulseRing {
+  0%   { transform: scale(0.5); opacity: 0.5; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+.pulse-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  width: 120px;
+  height: 120px;
+  animation: pulseRing 1.6s ease-out infinite;
+}
+.pulse-ring-2 { animation-delay: 0.4s; }
+.pulse-ring-3 { animation-delay: 0.8s; }
+
+/* ── Hide scrollbar ───────────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
