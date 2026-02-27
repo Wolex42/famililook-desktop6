@@ -129,8 +129,7 @@ export default function RoomLobby({ connection, onRoomReady }) {
           <GradientBtn
             disabled={!playerName.trim()}
             onClick={() => {
-              connection.connect();
-              setTimeout(() => connection.createRoom(playerName.trim(), isGroup ? 'group' : 'duo'), 500);
+              connection.connect(() => connection.createRoom(playerName.trim(), isGroup ? 'group' : 'duo'));
               setLobbyMode('host');
             }}
           >
@@ -181,8 +180,7 @@ export default function RoomLobby({ connection, onRoomReady }) {
             onChange={e => setJoinCode(e.target.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase())}
             onKeyDown={e => {
               if (e.key === 'Enter' && joinCode.length >= 6) {
-                connection.connect();
-                setTimeout(() => connection.joinRoom(playerName.trim(), joinCode.trim()), 500);
+                connection.connect(() => connection.joinRoom(playerName.trim(), joinCode.trim()));
                 setLobbyMode('join');
               }
             }}
@@ -196,8 +194,7 @@ export default function RoomLobby({ connection, onRoomReady }) {
         <GradientBtn
           disabled={joinCode.length < 6}
           onClick={() => {
-            connection.connect();
-            setTimeout(() => connection.joinRoom(playerName.trim(), joinCode.trim()), 500);
+            connection.connect(() => connection.joinRoom(playerName.trim(), joinCode.trim()));
             setLobbyMode('join');
           }}
         >

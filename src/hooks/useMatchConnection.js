@@ -103,7 +103,7 @@ export function useMatchConnection() {
     }
   }, [playerId]);
 
-  const connect = useCallback(() => {
+  const connect = useCallback((onReady) => {
     if (wsRef.current) {
       wsRef.current.close();
     }
@@ -115,6 +115,7 @@ export function useMatchConnection() {
 
     ws.onopen = () => {
       setStatus(STATUS.CONNECTED);
+      if (onReady) onReady();
     };
 
     ws.onmessage = handleMessage;
