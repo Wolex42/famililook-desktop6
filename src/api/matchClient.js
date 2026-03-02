@@ -11,6 +11,9 @@ import { COMPARE_FEATURES } from '../utils/constants';
  * Convert a base64 data URL to a Blob for FormData upload.
  */
 function dataUrlToBlob(dataUrl) {
+  if (!dataUrl || !dataUrl.includes(',')) {
+    throw new Error('Invalid data URL');
+  }
   const [header, data] = dataUrl.split(',');
   const mime = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
   const bytes = atob(data);

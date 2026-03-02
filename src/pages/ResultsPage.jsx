@@ -43,7 +43,9 @@ export default function ResultsPage() {
 
   const isGroup = mode === 'group';
   const playerNames = results?.players
-    ? Object.values(results.players)
+    ? (Array.isArray(results.players)
+        ? results.players.map(p => typeof p === 'string' ? p : p.name)
+        : Object.values(results.players))
     : players?.map((p) => p.name) || [];
 
   return (

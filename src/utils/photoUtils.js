@@ -39,8 +39,11 @@ export function fileToBase64(file) {
  * Convert a base64 data URL to a Blob (for uploading via WebSocket).
  */
 export function base64ToBlob(dataUrl) {
+  if (!dataUrl || !dataUrl.includes(',')) {
+    return new Blob([], { type: 'image/jpeg' });
+  }
   const [header, data] = dataUrl.split(',');
-  const mime = header.match(/:(.*?);/)[1];
+  const mime = header.match(/:(.*?);/)?.[1] || 'image/jpeg';
   const bytes = atob(data);
   const arr = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) {
