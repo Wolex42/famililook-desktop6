@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sparkles, ArrowRight } from 'lucide-react';
+import { Sparkles, ArrowRight, ChevronLeft } from 'lucide-react';
 import { useMatch } from '../state/MatchContext';
+
+const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
 
 /**
  * Lightweight onboarding — one screen, name input only.
@@ -28,6 +30,21 @@ export default function OnboardingScreen({ onComplete }) {
       className="fixed inset-0 z-40 flex items-center justify-center px-4 pt-[env(safe-area-inset-top,8px)] pb-[env(safe-area-inset-bottom,8px)]"
       style={{ background: 'linear-gradient(180deg, #0A0A0F 0%, #0D0820 80%, #0A0A0F 100%)' }}
     >
+      {/* Back to Brand Hub */}
+      <button
+        onClick={() => { window.location.href = BRAND_HUB_URL; }}
+        style={{
+          position: 'absolute', top: 'env(safe-area-inset-top, 16px)', left: '12px',
+          display: 'flex', alignItems: 'center', gap: '4px',
+          background: 'none', border: 'none', cursor: 'pointer',
+          color: 'rgba(255,255,255,0.5)', fontSize: '14px',
+          padding: '12px 8px', zIndex: 50, minHeight: '44px',
+        }}
+      >
+        <ChevronLeft size={18} />
+        Back
+      </button>
+
       {/* Ambient orb */}
       <div className="absolute w-72 h-72 rounded-full blur-3xl pointer-events-none bg-violet-600/12 top-24 right-8" />
       <div className="absolute w-48 h-48 rounded-full blur-3xl pointer-events-none bg-pink-500/10 bottom-32 left-4" />
