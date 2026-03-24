@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useMatchHistory } from '../hooks/useMatchHistory';
 
 const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
 const FAMILIMATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
@@ -152,6 +153,7 @@ export default function LandingPage() {
   const [showConsent, setShowConsent] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
   const count = useComparisonCount();
+  const { history, clearHistory } = useMatchHistory();
 
   useEffect(() => {
     analytics.trackPageView('landing');
@@ -349,6 +351,47 @@ export default function LandingPage() {
           })}
         </div>
       </div>
+
+      {/* Recent Matches */}
+      {history.length > 0 && (
+        <div className="relative z-10 w-full max-w-md mt-12">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-white">Recent Matches</h3>
+            <button
+              onClick={clearHistory}
+              className="text-xs text-gray-500 hover:text-gray-400"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="space-y-2">
+            {history.slice(0, 5).map(entry => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between px-4 py-3 rounded-xl"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}
+              >
+                <div>
+                  <div className="text-sm font-semibold text-white">
+                    {entry.name_a} & {entry.name_b}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {new Date(entry.timestamp).toLocaleDateString()}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-bold" style={{ color: entry.chemistry_color || '#5e5ce6' }}>
+                    {entry.percentage}%
+                  </div>
+                  <div className="text-xs" style={{ color: entry.chemistry_color || '#5e5ce6' }}>
+                    {entry.chemistry_label}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Email Capture */}
       <div className="relative z-10 w-full max-w-2xl mt-12">

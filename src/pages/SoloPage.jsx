@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useMatchHistory } from '../hooks/useMatchHistory';
+import ShareCard from '../components/ShareCard';
 
 const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
 const FAMILIMATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
@@ -51,6 +53,8 @@ export default function SoloPage() {
   const [progress, setProgress] = useState(null);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
+  const [showShare, setShowShare] = useState(false);
+  const { addEntry } = useMatchHistory();
 
   const handleCompare = async () => {
     if (!consent.bipaConsented) {
@@ -85,6 +89,7 @@ export default function SoloPage() {
       await new Promise((r) => setTimeout(r, remaining));
       analytics.trackComparison('solo', result.percentage, result.chemistry_label);
       setResults(result);
+      addEntry(result);
     } catch (err) {
       analytics.trackError('comparison_error', err.message || 'Comparison failed', { mode: 'solo' });
       setError(err.message || 'Comparison failed');
@@ -258,6 +263,20 @@ export default function SoloPage() {
                   nameA={userName || undefined}
                   onReset={handleReset}
                 />
+                {/* Share button */}
+                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                  <button
+                    onClick={() => setShowShare(true)}
+                    style={{
+                      padding: '12px 28px', borderRadius: 99,
+                      background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
+                      border: 'none', color: '#fff', fontSize: 15, fontWeight: 700,
+                      cursor: 'pointer', minHeight: 44,
+                    }}
+                  >
+                    Share Result
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -265,6 +284,7 @@ export default function SoloPage() {
       </div>
 
       {showConsent && <ConsentModal onConsented={handleConsented} />}
+      {showShare && <ShareCard result={results} onClose={() => setShowShare(false)} />}
     </>
   );
 }
