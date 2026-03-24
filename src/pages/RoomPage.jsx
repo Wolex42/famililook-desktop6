@@ -36,6 +36,7 @@ import RoomLobby from '../components/RoomLobby';
 import PhotoUpload from '../components/PhotoUpload';
 import ConsentModal from '../components/ConsentModal';
 import CountdownOverlay from '../components/CountdownOverlay';
+import ChatPanel from '../components/ChatPanel';
 
 // ── Waiting dots component ─────────────────────────────────────────
 function WaitingDots({ label }) {
@@ -291,6 +292,15 @@ export default function RoomPage() {
         <CountdownOverlay
           seconds={connection.countdown}
           onComplete={() => setPhase('done')}
+        />
+      )}
+
+      {/* Chat panel — available in all room phases */}
+      {connection.roomCode && (
+        <ChatPanel
+          messages={connection.chatMessages}
+          onSend={connection.sendChat}
+          myPlayerId={connection.playerId}
         />
       )}
     </div>

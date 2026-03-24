@@ -23,6 +23,7 @@ export function useMatchConnection() {
   const [analyzing, setAnalyzing] = useState(null);
   const [countdown, setCountdown] = useState(null);
   const [results, setResults] = useState(null);
+  const [chatMessages, setChatMessages] = useState([]);
 
   const wsRef = useRef(null);
   const statusRef = useRef(status);
@@ -98,6 +99,10 @@ export function useMatchConnection() {
         setAnalyzing(null);
         break;
 
+      case 'chat_message':
+        setChatMessages(prev => [...prev.slice(-49), data]);
+        break;
+
       case 'error':
         setError(data.message);
         break;
@@ -167,6 +172,10 @@ export function useMatchConnection() {
     send('ready', {});
   }, [send]);
 
+  const sendChat = useCallback((text) => {
+    send('send_chat', { text });
+  }, [send]);
+
   const leave = useCallback(() => {
     send('leave', {});
     setRoomCode(null);
@@ -215,6 +224,8 @@ export function useMatchConnection() {
     grantConsent,
     uploadPhoto,
     markReady,
+    sendChat,
+    chatMessages,
     leave,
   };
 }
