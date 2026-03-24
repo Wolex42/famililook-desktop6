@@ -5,6 +5,14 @@
  */
 
 import { API_BASE, API_KEY } from '../utils/config';
+
+function getBiometricHeaders() {
+  try {
+    const consent = JSON.parse(localStorage.getItem('fl:bipa-consent') || '{}');
+    if (consent.bipaConsented) return { 'X-Biometric-Consent': 'granted' };
+  } catch { /* */ }
+  return {};
+}
 import { COMPARE_FEATURES } from '../utils/constants';
 
 /**
@@ -28,7 +36,7 @@ function dataUrlToBlob(dataUrl) {
  * POST FormData to a desktop3 endpoint.
  */
 async function postForm(path, formData) {
-  const headers = API_KEY ? { 'X-API-Key': API_KEY } : undefined;
+  const headers = { ...getBiometricHeaders(), ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) };
   const resp = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
     headers,
