@@ -7,6 +7,9 @@
 import { API_BASE, API_KEY } from './config';
 
 function isConsentGiven() {
+  // Dev bypass: ConsentModal returns null in dev, so fl:bipa-consent is never set.
+  // Without this bypass, ALL analytics events are silently dropped in dev.
+  if (import.meta.env.DEV) return true;
   try {
     const raw = localStorage.getItem('fl:bipa-consent');
     if (!raw) return false;
@@ -21,10 +24,44 @@ class Analytics {
   constructor() {
     this.product = 'familimatch';
     this.sessionId = this.generateSessionId();
+    this.visitorId = this.getOrCreateVisitorId();
     this.sessionStart = Date.now();
     this.events = [];
+    this.region = this.captureRegion();
+    this.isReturning = this.detectReturningVisitor();
     // Fire session_start after consent state has initialised
-    setTimeout(() => this.track('session_start', {}), 0);
+    setTimeout(() => this.track('session_start', { isReturning: this.isReturning }), 0);
+  }
+
+  getOrCreateVisitorId() {
+    try {
+      const existing = localStorage.getItem('fl:match-visitor-id');
+      if (existing) return existing;
+      if (isConsentGiven()) {
+        const id = `mv_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('fl:match-visitor-id', id);
+        return id;
+      }
+      return `ephemeral_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    } catch { return null; }
+  }
+
+  detectReturningVisitor() {
+    try {
+      if (!isConsentGiven()) return false;
+      const count = parseInt(localStorage.getItem('fl:match-visit-count') || '0', 10) + 1;
+      localStorage.setItem('fl:match-visit-count', String(count));
+      return count > 1;
+    } catch { return false; }
+  }
+
+  captureRegion() {
+    try {
+      return {
+        language: navigator.language || null,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
+      };
+    } catch { return {}; }
   }
 
   generateSessionId() {
@@ -101,10 +138,12 @@ class Analytics {
     const event = {
       product: this.product,
       sessionId: this.sessionId,
+      visitorId: this.visitorId,
       eventType,
       timestamp: new Date().toISOString(),
       sessionTime: Date.now() - this.sessionStart,
       url: window.location.pathname,
+      region: this.region,
       ...data,
     };
 

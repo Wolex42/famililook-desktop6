@@ -3,6 +3,7 @@
 // Captured via html2canvas for sharing
 
 import { useRef, useState, useCallback } from 'react';
+import { analytics } from '../utils/analytics';
 
 const MATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
 const SHARE_URL = 'https://famililook-desktop6.vercel.app';
@@ -34,8 +35,10 @@ export default function ShareCard({ result, onClose }) {
 
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({ text: shareText, files: [file] });
+        analytics.track('share_completed', { method: 'native_with_file', percentage: result.percentage });
       } else if (navigator.share) {
         await navigator.share({ text: shareText, url: SHARE_URL });
+        analytics.track('share_completed', { method: 'native_url', percentage: result.percentage });
       } else {
         // Fallback: download
         const url = URL.createObjectURL(blob);
