@@ -220,7 +220,7 @@ export default function SoloPage() {
                 {/* Privacy note */}
                 <p className="flex items-center justify-center gap-1.5 text-xs text-gray-600">
                   <Lock size={10} />
-                  Photos are processed in memory only — never stored
+                  Photos are processed securely on EU servers — never stored
                 </p>
               </motion.div>
             )}

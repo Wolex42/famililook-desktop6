@@ -238,7 +238,7 @@ export default function RoomPage() {
                   </div>
 
                   <p className="text-xs text-white/25">
-                    Your photo is processed in memory only — never stored
+                    Your photo is processed securely on EU servers — never stored
                   </p>
                 </div>
               )}
