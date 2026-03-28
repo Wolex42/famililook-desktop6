@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useMatchHistory } from '../hooks/useMatchHistory';
 
 const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
+const TIER_ORDER = { free: 0, plus: 1, pro: 2 };
 const FAMILIMATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
 
 function reversePortalTransition(gradient, onNavigate) {
@@ -27,8 +28,8 @@ function reversePortalTransition(gradient, onNavigate) {
     setTimeout(() => { onNavigate(); setTimeout(() => overlay.remove(), 100); }, 430);
   }, 120);
 }
-import { useNavigate } from 'react-router-dom';
-import { Users, User, UsersRound, Sparkles, Zap, Heart, ChevronLeft } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Users, User, UsersRound, Sparkles, Zap, Heart, ChevronLeft, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useConsent } from '../state/ConsentContext';
 import { useMatch } from '../state/MatchContext';
@@ -107,6 +108,7 @@ const MODE_CARDS = [
     color: '#8B5CF6',
     gradient: 'from-violet-600/20 to-violet-900/10',
     badge: 'Instant',
+    requiredTier: 'free',
   },
   {
     id: 'duo',
@@ -117,6 +119,7 @@ const MODE_CARDS = [
     color: '#EC4899',
     gradient: 'from-pink-600/20 to-pink-900/10',
     badge: 'Live',
+    requiredTier: 'plus',
   },
   {
     id: 'group',
@@ -127,6 +130,7 @@ const MODE_CARDS = [
     color: '#FFD700',
     gradient: 'from-yellow-500/20 to-yellow-900/10',
     badge: 'Party',
+    requiredTier: 'plus',
   },
 ];
 
@@ -148,18 +152,46 @@ function Orb({ className }) {
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { consent } = useConsent();
   const { setMode } = useMatch();
   const [showConsent, setShowConsent] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
+  const [showUpgradeFor, setShowUpgradeFor] = useState(null);
   const count = useComparisonCount();
   const { history, clearHistory } = useMatchHistory();
+
+  // Tier from Trail URL param — default to free (Solo only) if absent
+  const userTier = useMemo(() => {
+    const t = searchParams.get('tier');
+    return (t && TIER_ORDER[t] !== undefined) ? t : 'free';
+  }, [searchParams]);
+
+  const isLocked = useCallback((card) => {
+    return (TIER_ORDER[card.requiredTier] ?? 0) > (TIER_ORDER[userTier] ?? 0);
+  }, [userTier]);
 
   useEffect(() => {
     analytics.trackPageView('landing');
   }, []);
 
+  // Auto-navigate if Trail sent a specific mode that's unlocked
+  useEffect(() => {
+    const inboundMode = searchParams.get('mode');
+    if (!inboundMode) return;
+    const card = MODE_CARDS.find(c => c.id === inboundMode);
+    if (card && !isLocked(card)) {
+      setMode(card.id);
+      navigate(card.path, { replace: true });
+    }
+  }, [searchParams, isLocked, setMode, navigate]);
+
   const handleSelect = (card) => {
+    if (isLocked(card)) {
+      setShowUpgradeFor(card);
+      analytics.trackAction('mode_locked_tap', { mode: card.id, userTier });
+      return;
+    }
     if (!consent.bipaConsented) {
       setPendingMode(card);
       setShowConsent(true);
@@ -321,28 +353,43 @@ export default function LandingPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {MODE_CARDS.map((card, i) => {
             const Icon = card.icon;
+            const locked = isLocked(card);
             return (
               <motion.button
                 key={card.id}
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.55 + 0.1 * i, duration: 0.45 }}
-                whileHover={{ scale: 1.03, y: -2 }}
-                whileTap={{ scale: 0.97 }}
+                whileHover={locked ? {} : { scale: 1.03, y: -2 }}
+                whileTap={locked ? {} : { scale: 0.97 }}
                 onClick={() => handleSelect(card)}
                 className={`relative rounded-2xl p-5 text-left border transition-all duration-200 bg-gradient-to-br ${card.gradient} border-gray-800 group overflow-hidden`}
+                style={locked ? { opacity: 0.55, cursor: 'default' } : {}}
               >
-                <span
-                  className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: `${card.color}22`, color: card.color }}
-                >
-                  {card.badge}
-                </span>
+                {locked ? (
+                  <span
+                    className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1"
+                    style={{ background: '#a855f722', color: '#a855f7' }}
+                  >
+                    <Lock size={10} /> Plus
+                  </span>
+                ) : (
+                  <span
+                    className="absolute top-3 right-3 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                    style={{ background: `${card.color}22`, color: card.color }}
+                  >
+                    {card.badge}
+                  </span>
+                )}
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110"
                   style={{ backgroundColor: `${card.color}18` }}
                 >
-                  <Icon size={22} style={{ color: card.color }} />
+                  {locked ? (
+                    <Lock size={22} style={{ color: card.color, opacity: 0.5 }} />
+                  ) : (
+                    <Icon size={22} style={{ color: card.color }} />
+                  )}
                 </div>
                 <h3 className="text-base font-bold mb-1 text-white">{card.title}</h3>
                 <p className="text-xs text-gray-400 leading-relaxed">{card.description}</p>
@@ -408,6 +455,49 @@ export default function LandingPage() {
       </div>
 
       {showConsent && <ConsentModal onConsented={handleConsented} />}
+
+      {/* Upgrade prompt for locked modes */}
+      {showUpgradeFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setShowUpgradeFor(null)}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={(e) => e.stopPropagation()}
+            className="rounded-2xl p-6 max-w-xs w-full text-center"
+            style={{ background: 'linear-gradient(180deg, #1a1028 0%, #0f0a1a 100%)', border: '1px solid rgba(168,85,247,0.3)' }}
+          >
+            <div
+              className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4"
+              style={{ background: '#a855f718' }}
+            >
+              <Lock size={24} className="text-purple-400" />
+            </div>
+            <h3 className="text-lg font-bold text-white mb-2">
+              {showUpgradeFor.title} requires Plus
+            </h3>
+            <p className="text-sm text-gray-400 mb-5">
+              Upgrade your plan on FamiliLook to unlock {showUpgradeFor.title} mode and more.
+            </p>
+            <a
+              href={BRAND_HUB_URL + '/settings?upgrade=plus'}
+              className="block w-full py-3 rounded-xl font-bold text-sm text-white mb-3"
+              style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)' }}
+            >
+              Upgrade to Plus
+            </a>
+            <button
+              onClick={() => setShowUpgradeFor(null)}
+              className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+            >
+              Maybe later
+            </button>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }
