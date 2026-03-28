@@ -187,9 +187,9 @@ export default function RoomPage() {
             </button>
             <button
               onClick={handleLeave}
-              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+              className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors min-h-[44px] min-w-[44px] px-3 py-2"
             >
-              <ArrowLeft size={16} /> Leave Room
+              <ArrowLeft size={20} /> Leave Room
             </button>
           </header>
 
