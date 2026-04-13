@@ -1,35 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useMatchHistory } from '../hooks/useMatchHistory';
 import ShareCard from '../components/ShareCard';
-
-const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
 const FAMILIMATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
-
-function reversePortalTransition(gradient, onNavigate) {
-  const overlay = document.createElement('div');
-  Object.assign(overlay.style, {
-    position: 'fixed', inset: '0', zIndex: '9999', pointerEvents: 'none',
-    background: `radial-gradient(ellipse at 50% 44%, rgba(255,255,255,0.16) 0%, transparent 62%), ${gradient}`,
-    opacity: '0', transform: 'scale(1)', borderRadius: '0',
-    willChange: 'opacity, transform, border-radius',
-    transition: 'opacity 0.12s ease',
-  });
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => requestAnimationFrame(() => { overlay.style.opacity = '1'; }));
-  setTimeout(() => {
-    Object.assign(overlay.style, {
-      transition: [
-        'opacity 0.4s ease-out',
-        'transform 0.45s cubic-bezier(0, 0, 0.6, 1)',
-        'border-radius 0.45s ease',
-      ].join(', '),
-      opacity: '0', transform: 'scale(0)', borderRadius: '50%',
-    });
-    setTimeout(() => { onNavigate(); setTimeout(() => overlay.remove(), 100); }, 430);
-  }, 120);
-}
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Zap, Camera, Lock, ChevronLeft } from 'lucide-react';
+import { ArrowLeft, Zap, Camera, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useConsent } from '../state/ConsentContext';
 import { useMatch } from '../state/MatchContext';
@@ -54,6 +28,7 @@ export default function SoloPage() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [showShare, setShowShare] = useState(false);
+  const [personBName, setPersonBName] = useState('');
   const { addEntry } = useMatchHistory();
 
   const handleCompare = async () => {
@@ -83,7 +58,7 @@ export default function SoloPage() {
     try {
       const result = await compareSolo(photoA, photoB, (step, pct) => {
         setProgress({ step, pct });
-      });
+      }, userName || 'You', personBName || 'Them');
       const elapsed = Date.now() - started;
       const remaining = Math.max(0, 8000 - elapsed);
       await new Promise((r) => setTimeout(r, remaining));
@@ -121,7 +96,7 @@ export default function SoloPage() {
         className="min-h-screen flex flex-col items-center px-4 py-8 relative"
         style={{ background: 'linear-gradient(180deg, #0A0A0F 0%, #0D0820 60%, #0A0A0F 100%)' }}
       >
-        {/* Branded header bar */}
+        {/* Branded header */}
         <header
           style={{
             position: 'sticky', top: 0, zIndex: 20, width: '100%',
@@ -132,15 +107,7 @@ export default function SoloPage() {
             marginBottom: '24px',
           }}
         >
-          <button
-            onClick={() => reversePortalTransition(FAMILIMATCH_GRADIENT, () => { window.location.href = BRAND_HUB_URL; })}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '8px',
-              background: 'none', border: 'none', cursor: 'pointer',
-              color: '#ffffff', padding: 0,
-            }}
-          >
-            <ChevronLeft size={20} color="rgba(255,255,255,0.6)" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div
               style={{
                 width: '36px', height: '36px', borderRadius: '12px',
@@ -151,13 +118,13 @@ export default function SoloPage() {
             >
               ✨
             </div>
-            <div style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '-0.3px' }}>
+            <div style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '-0.3px', color: '#ffffff' }}>
               FamiliMatch
             </div>
-          </button>
+          </div>
           <button
             onClick={() => navigate('/')}
-            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors min-h-[44px] min-w-[44px] px-3 py-2"
           >
             <ArrowLeft size={18} /> Back
           </button>
@@ -192,8 +159,17 @@ export default function SoloPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <PhotoUpload label="Photo A" onPhotoReady={setPhotoA} />
-                  <PhotoUpload label="Photo B" onPhotoReady={setPhotoB} />
+                  <PhotoUpload label={userName || 'Photo A'} onPhotoReady={setPhotoA} />
+                  <div className="flex flex-col gap-2">
+                    <PhotoUpload label={personBName || 'Photo B'} onPhotoReady={setPhotoB} />
+                    <input
+                      type="text"
+                      placeholder="Their name"
+                      value={personBName}
+                      onChange={(e) => setPersonBName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 min-h-[44px]"
+                    />
+                  </div>
                 </div>
 
                 {error && (
@@ -244,8 +220,30 @@ export default function SoloPage() {
                 <FeatureScanAnimation
                   progress={progress || { step: 'Starting...', pct: 0 }}
                   nameA={userName || 'A'}
-                  nameB="B"
+                  nameB={personBName || 'B'}
                 />
+              </motion.div>
+            )}
+
+            {/* ── ERROR PHASE ── */}
+            {error && !analyzing && !results && (
+              <motion.div
+                key="error"
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                className="flex flex-col items-center gap-4 p-6 rounded-2xl"
+                style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+              >
+                <p className="text-red-400 text-center font-medium">{error}</p>
+                <button
+                  onClick={() => { setError(null); }}
+                  className="px-6 py-3 rounded-xl font-semibold text-white"
+                  style={{ background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)', minHeight: 44 }}
+                >
+                  Try Again
+                </button>
               </motion.div>
             )}
 
@@ -274,7 +272,7 @@ export default function SoloPage() {
                       cursor: 'pointer', minHeight: 44,
                     }}
                   >
-                    Share Result
+                    Share Your Score
                   </button>
                 </div>
               </motion.div>

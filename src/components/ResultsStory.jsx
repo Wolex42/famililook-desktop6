@@ -1,337 +1,448 @@
-import { useState, useEffect, useRef } from 'react';
+/**
+ * ResultsStory — 5-slide swipeable story for FamiliMatch comparison results.
+ *
+ * Props:
+ *   results: CompareResult  — backend-authoritative compare_faces.v1 response + fusion_image
+ *   nameA: string | undefined — display name for person A
+ *   onReset: () => void      — resets comparison for a fresh run
+ *
+ * Slides:
+ *   1. Percentage reveal (animated number, chemistry_label, chemistry_color)
+ *   2. Strongest match (first feature_comparison with match=true)
+ *   3. Biggest contrast (first feature_comparison with match=false)
+ *   4. Feature breakdown (all 8 feature_comparisons as table)
+ *   5. Face fusion (morphed image if available) + share prompt
+ *
+ * All data comes from the results object — NO frontend re-derivation.
+ */
+
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RotateCcw, ChevronRight, Sparkles } from 'lucide-react';
-import { FEATURE_ICONS, FEATURE_SHORT_LABELS } from '../utils/constants';
-import { generateCommentary } from '../utils/commentary';
-import FusionReveal from './FusionReveal';
+import { ChevronLeft, ChevronRight, RotateCcw, Home, Check, X } from 'lucide-react';
 
-const TOTAL_CARDS = 5;
+const TOTAL_SLIDES = 5;
 
-/** Per-card background shifts */
-const CARD_BG = [
-  'from-violet-950 via-purple-950 to-black',   // 1: Score
-  'from-green-950 via-emerald-950 to-black',   // 2: Strongest Match
-  'from-rose-950 via-pink-950 to-black',       // 3: Biggest Contrast
-  'from-slate-950 via-gray-950 to-black',      // 4: Full Breakdown
-  'from-violet-950 via-purple-950 to-black',   // 5: Fusion
-];
+function useAnimatedNumber(target, duration = 1800, delay = 600) {
+  const [value, setValue] = useState(0);
+  useEffect(() => {
+    let timeout;
+    let raf;
+    timeout = setTimeout(() => {
+      const start = performance.now();
+      const tick = (now) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setValue(Math.round(eased * target));
+        if (progress < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    }, delay);
+    return () => { clearTimeout(timeout); cancelAnimationFrame(raf); };
+  }, [target, duration, delay]);
+  return value;
+}
 
-/** Progress dots */
-function Dots({ total, current }) {
+function DotIndicator({ total, current, onDotClick }) {
   return (
-    <div className="flex gap-1.5 justify-center mb-8">
-      {Array.from({ length: total }).map((_, i) => (
-        <div
+    <div className="flex items-center justify-center gap-2 py-4">
+      {Array.from({ length: total }, (_, i) => (
+        <button
           key={i}
-          className="rounded-full transition-all duration-300"
-          style={{
-            width: i === current ? 20 : 6,
-            height: 6,
-            background: i === current
-              ? 'linear-gradient(90deg, #a78bfa, #ec4899)'
-              : i < current
-              ? 'rgba(167,139,250,0.5)'
-              : 'rgba(255,255,255,0.12)',
-          }}
+          onClick={() => onDotClick(i)}
+          className={`rounded-full transition-all duration-300 ${
+            i === current
+              ? 'w-6 h-2 bg-blue-400'
+              : 'w-2 h-2 bg-white/20 hover:bg-white/40'
+          }`}
+          style={{ minHeight: 16, minWidth: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          aria-label={`Slide ${i + 1}`}
         />
       ))}
     </div>
   );
 }
 
-/** Animated count-up number */
-function CountUp({ target, color }) {
-  const [display, setDisplay] = useState(0);
-  const frame = useRef(null);
-
-  useEffect(() => {
-    const start = performance.now();
-    const duration = 1800;
-    const animate = (now) => {
-      const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3);
-      setDisplay(Math.round(eased * target));
-      if (t < 1) frame.current = requestAnimationFrame(animate);
-    };
-    frame.current = requestAnimationFrame(animate);
-    return () => cancelAnimationFrame(frame.current);
-  }, [target]);
-
+function SlideWrapper({ children }) {
   return (
-    <span style={{ color }} className="text-8xl font-extrabold tabular-nums">
-      {display}%
-    </span>
+    <div className="flex flex-col items-center justify-center min-h-[320px] px-4 py-6">
+      {children}
+    </div>
   );
 }
 
-/**
- * 5-card progressive results reveal.
- * Card 1: Score  |  Card 2: Strongest Match  |  Card 3: Biggest Contrast
- * Card 4: Full Breakdown  |  Card 5: Fusion Reveal
- */
-export default function ResultsStory({ results, nameA, nameB, onReset }) {
-  const [card, setCard] = useState(0);
-  const commentary = generateCommentary(results);
+// Slide 1: Percentage reveal with confetti celebration
+function PercentageSlide({ percentage, chemistry_label, chemistry_color, nameA, nameB, matchCount, totalFeatures }) {
+  const animatedPct = useAnimatedNumber(percentage);
+  const [glowActive, setGlowActive] = useState(false);
+
+  useEffect(() => {
+    // Trigger glow + confetti after count-up completes (~2.4s = 600ms delay + 1800ms animation)
+    const timer = setTimeout(() => {
+      setGlowActive(true);
+      if (percentage >= 75) {
+        import('canvas-confetti').then(({ default: confetti }) => {
+          const colors = ['#0a84ff', '#5e5ce6', '#ec4899', '#a78bfa', '#fbbf24'];
+          const count = percentage >= 90 ? 80 : 40;
+          confetti({ particleCount: count, spread: 80, origin: { y: 0.3 }, colors, disableForReducedMotion: true });
+          if (percentage >= 90) {
+            setTimeout(() => confetti({ particleCount: 50, spread: 100, origin: { y: 0.4 }, colors, disableForReducedMotion: true }), 1500);
+          }
+        });
+      }
+    }, 2400);
+    return () => clearTimeout(timer);
+  }, [percentage]);
+
+  return (
+    <SlideWrapper>
+      <motion.div
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 120, damping: 12 }}
+        className="text-center"
+      >
+        <div className="text-sm text-white/60 mb-3">
+          {nameA} & {nameB}
+        </div>
+        <div
+          className="font-black tracking-tighter mb-2"
+          style={{
+            fontSize: 72,
+            lineHeight: 1,
+            background: 'linear-gradient(145deg, #0a84ff, #5e5ce6)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            transition: 'filter 0.6s ease',
+            filter: glowActive ? `drop-shadow(0 0 30px ${chemistry_color || '#5e5ce6'}60)` : 'none',
+          }}
+        >
+          {animatedPct}%
+        </div>
+        <div className="text-sm text-white/40 mb-4">Match Score</div>
+        <div
+          className="inline-block px-5 py-2 rounded-full text-sm font-bold"
+          style={{
+            background: `${chemistry_color || '#5e5ce6'}20`,
+            color: chemistry_color || '#5e5ce6',
+          }}
+        >
+          {chemistry_label}
+        </div>
+        <div className="text-xs text-white/30 mt-3">
+          {matchCount} of {totalFeatures} features match
+        </div>
+      </motion.div>
+    </SlideWrapper>
+  );
+}
+
+// Slide 2: Strongest match
+function StrongestMatchSlide({ feature, nameA, nameB }) {
+  if (!feature) {
+    return (
+      <SlideWrapper>
+        <p className="text-white/40 text-sm">No matching features detected</p>
+      </SlideWrapper>
+    );
+  }
+
+  return (
+    <SlideWrapper>
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="text-center space-y-4"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-green-500/15 border border-green-500/20 flex items-center justify-center mx-auto">
+          <Check size={28} className="text-green-400" />
+        </div>
+        <div>
+          <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Strongest Match</p>
+          <h2 className="text-2xl font-bold text-white capitalize">
+            {feature.feature.replace('_', ' ')}
+          </h2>
+        </div>
+        <div className="flex items-center justify-center gap-6 text-sm">
+          <div className="text-center">
+            <p className="text-white/40 text-xs mb-1">{nameA}</p>
+            <p className="text-white font-medium">{feature.label_a}</p>
+          </div>
+          <div className="text-green-400 text-xs font-bold px-3 py-1 rounded-full bg-green-500/10">
+            Match
+          </div>
+          <div className="text-center">
+            <p className="text-white/40 text-xs mb-1">{nameB}</p>
+            <p className="text-white font-medium">{feature.label_b}</p>
+          </div>
+        </div>
+      </motion.div>
+    </SlideWrapper>
+  );
+}
+
+// Slide 3: Biggest contrast
+function BiggestContrastSlide({ feature, nameA, nameB }) {
+  if (!feature) {
+    return (
+      <SlideWrapper>
+        <p className="text-white/40 text-sm">All features match!</p>
+      </SlideWrapper>
+    );
+  }
+
+  return (
+    <SlideWrapper>
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="text-center space-y-4"
+      >
+        <div className="w-14 h-14 rounded-2xl bg-orange-500/15 border border-orange-500/20 flex items-center justify-center mx-auto">
+          <X size={28} className="text-orange-400" />
+        </div>
+        <div>
+          <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Biggest Contrast</p>
+          <h2 className="text-2xl font-bold text-white capitalize">
+            {feature.feature.replace('_', ' ')}
+          </h2>
+        </div>
+        <div className="flex items-center justify-center gap-6 text-sm">
+          <div className="text-center">
+            <p className="text-white/40 text-xs mb-1">{nameA}</p>
+            <p className="text-white font-medium">{feature.label_a}</p>
+          </div>
+          <div className="text-orange-400 text-xs font-bold px-3 py-1 rounded-full bg-orange-500/10">
+            Different
+          </div>
+          <div className="text-center">
+            <p className="text-white/40 text-xs mb-1">{nameB}</p>
+            <p className="text-white font-medium">{feature.label_b}</p>
+          </div>
+        </div>
+      </motion.div>
+    </SlideWrapper>
+  );
+}
+
+// Slide 4: Feature breakdown table
+function FeatureBreakdownSlide({ featureComparisons, nameA, nameB }) {
+  return (
+    <SlideWrapper>
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4 }}
+        className="w-full max-w-sm"
+      >
+        <p className="text-xs text-white/40 uppercase tracking-wider text-center mb-4">
+          Feature Breakdown
+        </p>
+        <div className="space-y-1">
+          {/* Header */}
+          <div className="grid grid-cols-[1fr_60px_60px_32px] gap-2 px-3 py-2 text-xs text-white/30">
+            <span>Feature</span>
+            <span className="text-center">{nameA}</span>
+            <span className="text-center">{nameB}</span>
+            <span className="text-center">Match</span>
+          </div>
+          {/* Rows — always exactly 8 from backend */}
+          {(featureComparisons || []).map((fc) => (
+            <div
+              key={fc.feature}
+              className={`grid grid-cols-[1fr_60px_60px_32px] gap-2 px-3 py-2 rounded-lg text-xs ${
+                fc.match ? 'bg-green-500/5' : 'bg-white/[0.02]'
+              }`}
+            >
+              <span className="text-white/70 capitalize">{fc.feature.replace('_', ' ')}</span>
+              <span className="text-white/50 text-center truncate">{fc.label_a}</span>
+              <span className="text-white/50 text-center truncate">{fc.label_b}</span>
+              <span className="text-center">
+                {fc.match ? (
+                  <Check size={14} className="inline text-green-400" />
+                ) : (
+                  <X size={14} className="inline text-white/20" />
+                )}
+              </span>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </SlideWrapper>
+  );
+}
+
+// Slide 5: Fusion image + CTA
+function FusionSlide({ fusionImage }) {
+  return (
+    <SlideWrapper>
+      <motion.div
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.5 }}
+        className="text-center space-y-4"
+      >
+        <p className="text-xs text-white/40 uppercase tracking-wider">Face Fusion</p>
+        {fusionImage ? (
+          <div className="relative mx-auto w-48 h-48 rounded-2xl overflow-hidden border border-white/10">
+            <img
+              src={`data:image/png;base64,${fusionImage}`}
+              alt="Face fusion"
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ) : (
+          <div className="mx-auto w-48 h-48 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center">
+            <p className="text-sm text-white/25">Fusion unavailable</p>
+          </div>
+        )}
+        <p className="text-sm text-white/40 max-w-xs mx-auto">
+          Share your result with friends and challenge them to beat your score!
+        </p>
+      </motion.div>
+    </SlideWrapper>
+  );
+}
+
+export default function ResultsStory({ results, nameA, onReset }) {
+  const navigate = useNavigate();
+  const [slide, setSlide] = useState(0);
+  const containerRef = useRef(null);
+  const touchStartX = useRef(null);
 
   if (!results) return null;
 
-  const { percentage, chemistry_label, chemistry_color, feature_comparisons = [], fusion_image } = results;
-  const pct = percentage ?? 0;
-  const matchCount = feature_comparisons.filter((f) => f.match).length;
-  const n1 = nameA || 'Person A';
-  const n2 = nameB || 'Person B';
+  const {
+    percentage,
+    chemistry_label,
+    chemistry_color,
+    feature_comparisons,
+    fusion_image,
+    name_a,
+    name_b,
+  } = results;
 
-  const next = () => setCard((c) => Math.min(c + 1, TOTAL_CARDS - 1));
-  const isLast = card === TOTAL_CARDS - 1;
+  const displayA = nameA || name_a || 'Person A';
+  const displayB = name_b || 'Person B';
 
-  const cardVariants = {
-    initial: { opacity: 0, y: 40 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -40 },
+  const strongestMatch = (feature_comparisons || []).find((fc) => fc.match);
+  const biggestContrast = (feature_comparisons || []).find((fc) => !fc.match);
+
+  const goTo = useCallback((idx) => {
+    setSlide(Math.max(0, Math.min(TOTAL_SLIDES - 1, idx)));
+  }, []);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
   };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+    const delta = e.changedTouches[0].clientX - touchStartX.current;
+    if (Math.abs(delta) > 50) {
+      goTo(delta > 0 ? slide - 1 : slide + 1);
+    }
+    touchStartX.current = null;
+  };
+
+  const slides = [
+    <PercentageSlide
+      key="pct"
+      percentage={percentage}
+      chemistry_label={chemistry_label}
+      chemistry_color={chemistry_color}
+      nameA={displayA}
+      nameB={displayB}
+      matchCount={(feature_comparisons || []).filter(fc => fc.match).length}
+      totalFeatures={(feature_comparisons || []).length || 8}
+    />,
+    <StrongestMatchSlide key="match" feature={strongestMatch} nameA={displayA} nameB={displayB} />,
+    <BiggestContrastSlide key="contrast" feature={biggestContrast} nameA={displayA} nameB={displayB} />,
+    <FeatureBreakdownSlide
+      key="breakdown"
+      featureComparisons={feature_comparisons}
+      nameA={displayA}
+      nameB={displayB}
+    />,
+    <FusionSlide key="fusion" fusionImage={fusion_image} />,
+  ];
 
   return (
     <div
-      className={`min-h-[85vh] rounded-2xl bg-gradient-to-b ${CARD_BG[card]} flex flex-col transition-all duration-700 overflow-hidden`}
-      style={{ border: '1px solid rgba(255,255,255,0.07)' }}
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="w-full"
     >
-      {/* Dots + card content */}
-      <div className="flex-1 flex flex-col px-6 py-8">
-        <Dots total={TOTAL_CARDS} current={card} />
-
+      {/* Slide content */}
+      <div
+        className="rounded-3xl overflow-hidden"
+        style={{
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.07)',
+        }}
+      >
         <AnimatePresence mode="wait">
-          {/* ── CARD 1: THE SCORE ── */}
-          {card === 0 && (
-            <motion.div
-              key="score"
-              variants={cardVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.45 }}
-              className="flex-1 flex flex-col items-center justify-center text-center gap-6"
-            >
-              <CountUp target={pct} color={chemistry_color} />
-
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 1.5 }}
-                className="space-y-3"
-              >
-                <p className="text-2xl font-bold" style={{ color: chemistry_color }}>
-                  {chemistry_label}
-                </p>
-                {commentary?.tierComment && (
-                  <p className="text-sm text-gray-400 leading-relaxed max-w-xs mx-auto">
-                    {commentary.tierComment}
-                  </p>
-                )}
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* ── CARD 2: STRONGEST MATCH ── */}
-          {card === 1 && (
-            <motion.div
-              key="strongest"
-              variants={cardVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.45 }}
-              className="flex-1 flex flex-col items-center justify-center text-center gap-6"
-            >
-              <p className="text-sm font-semibold text-green-400 uppercase tracking-widest">
-                Your closest feature match
-              </p>
-
-              {commentary?.strongestMatch ? (
-                <>
-                  <div className="text-6xl">
-                    {FEATURE_ICONS[commentary.strongestMatch.feature] || '✓'}
-                  </div>
-                  <p className="text-2xl font-bold text-white">
-                    {FEATURE_SHORT_LABELS[commentary.strongestMatch.feature] || commentary.strongestMatch.feature}
-                  </p>
-                  <div className="flex gap-4 text-sm">
-                    <div className="text-center">
-                      <p className="text-gray-500 text-xs mb-1">{n1}</p>
-                      <p className="text-white font-medium px-3 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                        {commentary.strongestMatch.label_a || '—'}
-                      </p>
-                    </div>
-                    <div className="flex items-center text-green-400 text-lg font-bold">≈</div>
-                    <div className="text-center">
-                      <p className="text-gray-500 text-xs mb-1">{n2}</p>
-                      <p className="text-white font-medium px-3 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                        {commentary.strongestMatch.label_b || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  {commentary.strongestMatchComment && (
-                    <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
-                      {commentary.strongestMatchComment}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-gray-500">No matching features found</p>
-              )}
-            </motion.div>
-          )}
-
-          {/* ── CARD 3: BIGGEST CONTRAST ── */}
-          {card === 2 && (
-            <motion.div
-              key="contrast"
-              variants={cardVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.45 }}
-              className="flex-1 flex flex-col items-center justify-center text-center gap-6"
-            >
-              <p className="text-sm font-semibold text-rose-400 uppercase tracking-widest">
-                Your most distinct difference
-              </p>
-
-              {commentary?.biggestContrast ? (
-                <>
-                  <div className="text-6xl">
-                    {FEATURE_ICONS[commentary.biggestContrast.feature] || '≠'}
-                  </div>
-                  <p className="text-2xl font-bold text-white">
-                    {FEATURE_SHORT_LABELS[commentary.biggestContrast.feature] || commentary.biggestContrast.feature}
-                  </p>
-                  <div className="flex gap-4 text-sm">
-                    <div className="text-center">
-                      <p className="text-gray-500 text-xs mb-1">{n1}</p>
-                      <p className="text-white font-medium px-3 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                        {commentary.biggestContrast.label_a || '—'}
-                      </p>
-                    </div>
-                    <div className="flex items-center text-rose-400 text-lg font-bold">≠</div>
-                    <div className="text-center">
-                      <p className="text-gray-500 text-xs mb-1">{n2}</p>
-                      <p className="text-white font-medium px-3 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.06)' }}>
-                        {commentary.biggestContrast.label_b || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  {commentary.biggestContrastComment && (
-                    <p className="text-sm text-gray-400 leading-relaxed max-w-xs">
-                      {commentary.biggestContrastComment}
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="text-gray-500">No distinct contrasts found</p>
-              )}
-            </motion.div>
-          )}
-
-          {/* ── CARD 4: FULL BREAKDOWN ── */}
-          {card === 3 && (
-            <motion.div
-              key="breakdown"
-              variants={cardVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.45 }}
-              className="flex-1 flex flex-col gap-4"
-            >
-              <p className="text-sm font-semibold text-gray-400 uppercase tracking-widest text-center mb-2">
-                Feature Breakdown
-              </p>
-
-              <div className="space-y-2">
-                {feature_comparisons.map((f, i) => (
-                  <motion.div
-                    key={f.feature}
-                    initial={{ opacity: 0, x: -16 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.3 }}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl ${
-                      f.match
-                        ? 'bg-green-900/20 border border-green-800/30'
-                        : 'border border-gray-800/60'
-                    }`}
-                    style={f.match ? {} : { background: 'rgba(255,255,255,0.03)' }}
-                  >
-                    <span className="text-base">{FEATURE_ICONS[f.feature] || '?'}</span>
-                    <span className="text-xs text-gray-400 w-12 shrink-0">
-                      {FEATURE_SHORT_LABELS[f.feature] || f.feature}
-                    </span>
-                    <span className="text-xs text-gray-300 flex-1 text-right">{f.label_a || '—'}</span>
-                    <span className={`text-xs font-bold ${f.match ? 'text-green-400' : 'text-gray-600'}`}>
-                      {f.match ? '=' : '≠'}
-                    </span>
-                    <span className="text-xs text-gray-300 flex-1">{f.label_b || '—'}</span>
-                  </motion.div>
-                ))}
-              </div>
-
-              <p className="text-xs text-gray-500 text-center mt-2">
-                {matchCount} of {feature_comparisons.length} features match
-              </p>
-            </motion.div>
-          )}
-
-          {/* ── CARD 5: FUSION REVEAL ── */}
-          {card === 4 && (
-            <motion.div
-              key="fusion"
-              variants={cardVariants}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.45 }}
-              className="flex-1 flex flex-col items-center justify-center gap-6"
-            >
-              <div className="text-center mb-2">
-                <Sparkles size={28} className="text-violet-400 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-gray-400 uppercase tracking-widest">
-                  What would your combination look like?
-                </p>
-              </div>
-
-              <FusionReveal fusionImage={fusion_image} />
-
-              {/* End actions */}
-              <div className="w-full space-y-3 mt-4">
-                <button
-                  onClick={onReset}
-                  className="w-full flex items-center justify-center gap-2 py-4 rounded-xl border border-gray-700 text-gray-300 hover:bg-white/5 transition-colors text-sm font-medium"
-                >
-                  <RotateCcw size={15} />
-                  Compare Again
-                </button>
-              </div>
-            </motion.div>
-          )}
+          <motion.div
+            key={slide}
+            initial={{ opacity: 0, x: 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -40 }}
+            transition={{ duration: 0.25 }}
+          >
+            {slides[slide]}
+          </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* Tap to continue */}
-      {!isLast && (
-        <div className="px-6 pb-8">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
-            onClick={next}
-            className="w-full py-4 rounded-xl font-bold text-black flex items-center justify-center gap-2"
-            style={{
-              background: 'linear-gradient(135deg, #a78bfa 0%, #ec4899 100%)',
-              boxShadow: '0 6px 24px rgba(139,92,246,0.30)',
-            }}
-          >
-            Continue
-            <ChevronRight size={18} />
-          </motion.button>
-        </div>
-      )}
+      {/* Navigation arrows */}
+      <div className="flex items-center justify-between px-2 mt-2">
+        <button
+          onClick={() => goTo(slide - 1)}
+          disabled={slide === 0}
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white/40 hover:text-white disabled:opacity-20 transition-all"
+          aria-label="Previous slide"
+        >
+          <ChevronLeft size={22} />
+        </button>
+
+        <DotIndicator total={TOTAL_SLIDES} current={slide} onDotClick={goTo} />
+
+        <button
+          onClick={() => goTo(slide + 1)}
+          disabled={slide === TOTAL_SLIDES - 1}
+          className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-white/40 hover:text-white disabled:opacity-20 transition-all"
+          aria-label="Next slide"
+        >
+          <ChevronRight size={22} />
+        </button>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex items-center justify-center gap-3 mt-4">
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white/60 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all"
+          style={{ minHeight: 44 }}
+        >
+          <Home size={16} />
+          Go Back
+        </button>
+        <button
+          onClick={onReset}
+          className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all"
+          style={{
+            minHeight: 44,
+            background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
+          }}
+        >
+          <RotateCcw size={16} />
+          Try Again
+        </button>
+      </div>
     </div>
   );
 }

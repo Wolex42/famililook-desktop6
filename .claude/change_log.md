@@ -5,6 +5,46 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-13 — Phase A2: Viral unlock — result reveal + share card (CR-MATCH-A2)
+
+**Risk Tier**: P1 (growth feature)
+**Approved by**: CEO (Visual Director spec approved with 3 additions)
+**Executed by**: FE Lead agent | **Verified by**: QA Lead agent
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-13 | desktop6 | Dep | Added canvas-confetti@^1.9.3 (4KB gzipped, lazy loaded) | CR-MATCH-A2-01 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | Enhanced PercentageSlide: slower spring (120/12), 600ms delay, 72px text, glow pulse, names + feature count display | CR-MATCH-A2-02 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | Confetti celebration: >= 75% light burst (40 particles), >= 90% full celebration (80 + second burst) | CR-MATCH-A2-03 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | ShareCard.jsx full rewrite: 9:16 format (1080x1920), SVG person icon fallback, familimatch.com/?ref=share URL | CR-MATCH-A2-04 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | Share flow: navigator.share() with Blob image, clipboard copy fallback on desktop, download final fallback | CR-MATCH-A2-05 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | SoloPage header: removed back-to-hub portal transition, clean branded header with Back to landing | CR-MATCH-A2-06 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | Share CTA copy changed to "Share Your Score" across Solo + Duo results | CR-MATCH-A2-07 | P1 | CLOSED |
+
+**Tests**: 51/51 passed, build succeeded. Quality floor maintained.
+**CEO additions implemented**: (1) Person SVG fallback for missing names (2) ?ref=share tracking URL (3) Blob-based navigator.share()
+
+---
+
+## 2026-04-13 — Phase A1: Fix broken FamiliMatch product (CR-MATCH-A1)
+
+**Risk Tier**: P1 (product growth blocker)
+**Approved by**: CEO
+**Executed by**: FE Lead agent | **Verified by**: QA Lead agent
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-13 | desktop6 | Code | A1.1: Removed back button from landing page header — FamiliMatch is standalone, not a sub-product | CR-MATCH-A1-01 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | A1.2: Fixed upgrade flow — Duo/Group upgrade now opens famililook.com/plans in new tab instead of navigating away | CR-MATCH-A1-02 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | A1.3: Removed fabricated "Thousands of comparisons made" counter — no fake social proof | CR-MATCH-A1-03 | P1 | CLOSED |
+| 2026-04-13 | desktop3 | Code | A1.4: Added familimatch.com + www.familimatch.com to CORS allowed origins | CR-MATCH-A1-04 | P1 | CLOSED |
+| 2026-04-13 | desktop7 | Code | A1.4: Added familimatch.com + www.familimatch.com + Vercel URL to CORS defaults | CR-MATCH-A1-04 | P1 | CLOSED |
+
+**Tests**: 51/51 passed, build succeeded. Quality floor maintained.
+**Removed unused imports**: `reversePortalTransition`, `ChevronLeft`, `useComparisonCount`
+
+---
+
 ## 2026-04-14 — Sprint D2: Wire AppErrorBus from famililook-shared (CR-ERRORBUS-D6-01)
 
 **Description:** Wired AppErrorBus from famililook-shared into desktop6. Created re-export shim at `src/infrastructure/AppErrorBus.js`. Copied ErrorToast component and mounted in App.jsx. Migrated `useMatchHistory.addEntry` quota failure to `reportError()` (user now sees toast instead of silent data loss). 16 remaining catches are legitimate graceful degradation — annotated with `eslint-disable-line no-empty` comments for future ESLint enforcement.

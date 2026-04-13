@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMatchHistory } from '../hooks/useMatchHistory';
-import { reversePortalTransition } from '../utils/portalTransition';
 
 const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
 const TIER_ORDER = { free: 0, plus: 1, pro: 2 };
 const FAMILIMATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
-import { Users, User, UsersRound, Sparkles, Zap, Heart, ChevronLeft, Lock } from 'lucide-react';
+import { Users, User, UsersRound, Sparkles, Zap, Heart, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useConsent } from '../state/ConsentContext';
 import { useMatch } from '../state/MatchContext';
@@ -111,10 +110,6 @@ const MODE_CARDS = [
   },
 ];
 
-function useComparisonCount() {
-  return 'Thousands of';
-}
-
 function Orb({ className }) {
   return <div className={`absolute rounded-full blur-3xl pointer-events-none ${className}`} />;
 }
@@ -127,7 +122,6 @@ export default function LandingPage() {
   const [showConsent, setShowConsent] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
   const [showUpgradeFor, setShowUpgradeFor] = useState(null);
-  const count = useComparisonCount();
   const { history, clearHistory } = useMatchHistory();
 
   // Signed tier token from URL param — used for backend WebSocket auth
@@ -199,25 +193,17 @@ export default function LandingPage() {
       className="min-h-screen flex flex-col items-center px-4 py-10 relative overflow-hidden"
       style={{ background: 'linear-gradient(180deg, #0A0A0F 0%, #0D0820 60%, #0A0A0F 100%)' }}
     >
-      {/* Branded header bar */}
+      {/* Branded header */}
       <header
         style={{
           position: 'sticky', top: 0, zIndex: 20, width: '100%',
           padding: '8px 16px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
           background: '#0A0A0F',
         }}
       >
-        <button
-          onClick={() => reversePortalTransition(FAMILIMATCH_GRADIENT, () => { window.location.href = BRAND_HUB_URL; })}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: '#ffffff', padding: 0, minHeight: '44px',
-          }}
-        >
-          <ChevronLeft size={20} color="rgba(255,255,255,0.6)" />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div
             style={{
               width: '36px', height: '36px', borderRadius: '12px',
@@ -228,10 +214,10 @@ export default function LandingPage() {
           >
             ✨
           </div>
-          <div style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '-0.3px' }}>
+          <div style={{ fontSize: '18px', fontWeight: 600, letterSpacing: '-0.3px', color: '#ffffff' }}>
             FamiliMatch
           </div>
-        </button>
+        </div>
       </header>
 
       <Orb className="w-96 h-96 bg-violet-600/10 top-[-80px] left-[-60px]" />
@@ -314,14 +300,6 @@ export default function LandingPage() {
           Try It Now — Free
         </motion.button>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.45, duration: 0.5 }}
-          className="text-xs text-gray-600"
-        >
-          {count} comparisons made
-        </motion.p>
       </div>
 
       {/* ── BELOW FOLD — MODE CARDS ── */}
@@ -468,7 +446,8 @@ export default function LandingPage() {
               Upgrade your plan on FamiliLook to unlock {showUpgradeFor.title} mode and more.
             </p>
             <a
-              href={BRAND_HUB_URL + '/settings?upgrade=plus'}
+              href="https://famililook.com/plans"
+              target="_blank" rel="noopener noreferrer"
               className="block w-full py-3 rounded-xl font-bold text-sm text-white mb-3"
               style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)' }}
             >

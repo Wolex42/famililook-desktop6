@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@famililook/shared": "file:../famililook-shared",
+    "canvas-confetti": "^1.9.4",
     "framer-motion": "^12.34.3",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.473.0",
