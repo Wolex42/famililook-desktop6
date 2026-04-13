@@ -5,6 +5,19 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-14 — Sprint D2: Wire AppErrorBus from famililook-shared (CR-ERRORBUS-D6-01)
+
+**Description:** Wired AppErrorBus from famililook-shared into desktop6. Created re-export shim at `src/infrastructure/AppErrorBus.js`. Copied ErrorToast component and mounted in App.jsx. Migrated `useMatchHistory.addEntry` quota failure to `reportError()` (user now sees toast instead of silent data loss). 16 remaining catches are legitimate graceful degradation — annotated with `eslint-disable-line no-empty` comments for future ESLint enforcement.
+
+**Files added:** `src/infrastructure/AppErrorBus.js`, `src/components/ui/ErrorToast.jsx`
+**Files modified:** `src/App.jsx`, `src/api/matchClient.js`, `src/utils/analytics.js`, `src/hooks/useMatchHistory.js`, `src/hooks/useMatchConnection.js`, `src/state/ConsentContext.jsx`, `src/state/MatchContext.jsx`, `src/pages/LandingPage.jsx`
+**Cross-repo impact:** None — consuming shared package, no changes to shared package.
+**Deferred:** AppStorage migration — requires Platform Architect key schema design for multi-product support.
+**Tests:** 51 unit + 14 E2E PASS, build PASS
+**Status:** COMPLETE
+
+---
+
 ## 2026-04-14 — Sprint D1: Playwright E2E setup (CR-E2E-D6-01)
 
 **Description:** Installed Playwright with Chromium. Created `playwright.config.js` (port 5174, iPhone 14 Pro viewport, strictPort). Added `test:e2e` script. Created `e2e/solo-flow.spec.js` with 14 E2E tests covering:

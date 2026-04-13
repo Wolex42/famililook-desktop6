@@ -5,15 +5,16 @@
  */
 
 import { API_BASE, API_KEY } from '../utils/config';
+import { report as reportError } from '../infrastructure/AppErrorBus';
+import { COMPARE_FEATURES } from '../utils/constants';
 
 function getBiometricHeaders() {
   try {
     const consent = JSON.parse(localStorage.getItem('fl:bipa-consent') || '{}');
     if (consent.bipaConsented) return { 'X-Biometric-Consent': 'granted' };
-  } catch { /* */ }
+  } catch { /* localStorage parse — non-fatal */ } // eslint-disable-line no-empty
   return {};
 }
-import { COMPARE_FEATURES } from '../utils/constants';
 
 /**
  * Convert a base64 data URL to a Blob for FormData upload.
@@ -47,7 +48,7 @@ async function postForm(path, formData) {
     try {
       const err = await resp.json();
       if (err.detail) msg = err.detail;
-    } catch { /* ignore */ }
+    } catch { /* response parse — non-fatal */ } // eslint-disable-line no-empty
     throw new Error(msg);
   }
   return resp.json();
@@ -71,14 +72,22 @@ async function compareFacesDirect(blobA, blobB, nameA = 'Person A', nameB = 'Per
  * Create face morph via /face/morph.
  * Replicates: desktop2/src/game/FaceFusion/faceCompositor.js
  */
-async function createMorph(blobA, blobB) {
+async function createMorph(blobA, blobB, featureComparisons) {
   try {
     const fd = new FormData();
-    // Split features 50/50 between both people for a real blend
+    // Build fusion slots from comparison results:
+    // matched features come from face_a, unmatched from face_b
     const fusionSlots = {};
-    COMPARE_FEATURES.forEach((f, i) => {
-      fusionSlots[f] = i % 2 === 0 ? 'PersonA' : 'PersonB';
-    });
+    if (featureComparisons && featureComparisons.length > 0) {
+      featureComparisons.forEach((fc) => {
+        fusionSlots[fc.feature] = fc.match ? 'PersonA' : 'PersonB';
+      });
+    } else {
+      // Fallback: alternate 50/50 if no comparison data available
+      COMPARE_FEATURES.forEach((f, i) => {
+        fusionSlots[f] = i % 2 === 0 ? 'PersonA' : 'PersonB';
+      });
+    }
     fd.append('fusion_slots', JSON.stringify(fusionSlots));
     fd.append('output_size', '512');
     fd.append('face_PersonA', blobA, 'PersonA.jpg');
@@ -87,7 +96,7 @@ async function createMorph(blobA, blobB) {
     const result = await postForm('/face/morph', fd);
     return result.image || null;
   } catch (err) {
-    console.warn('[morph] Failed:', err.message);
+    reportError({ message: 'Face fusion could not be created.', context: 'matchClient.createMorph', severity: 'low', code: 'MORPH_FAIL', cause: err });
     return null;
   }
 }
@@ -100,18 +109,18 @@ async function createMorph(blobA, blobB) {
  * @param {string} photoB - data URL
  * @param {function} onProgress - (step, progress) callback
  */
-export async function compareSolo(photoA, photoB, onProgress) {
+export async function compareSolo(photoA, photoB, onProgress, nameA = 'Person A', nameB = 'Person B') {
   const blobA = dataUrlToBlob(photoA);
   const blobB = dataUrlToBlob(photoB);
 
   // Step 1: Peer-to-peer comparison (symmetric, no kinship framing)
   onProgress?.('Analyzing faces...', 20);
-  const result = await compareFacesDirect(blobA, blobB);
+  const result = await compareFacesDirect(blobA, blobB, nameA, nameB);
   onProgress?.('Processing results...', 60);
 
   // Step 2: Face morph — the product differentiator
   onProgress?.('Creating fusion...', 80);
-  const fusionImage = await createMorph(blobA, blobB);
+  const fusionImage = await createMorph(blobA, blobB, result.feature_comparisons);
 
   onProgress?.('Done!', 100);
 

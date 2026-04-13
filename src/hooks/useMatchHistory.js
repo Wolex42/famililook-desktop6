@@ -2,6 +2,7 @@
 // Max 20 entries, FIFO. No photos or biometric data — just scores + names.
 
 import { useState, useCallback } from 'react';
+import { report as reportError } from '../infrastructure/AppErrorBus';
 
 const STORAGE_KEY = 'fl:match_history';
 const MAX_ENTRIES = 20;
@@ -9,9 +10,7 @@ const MAX_ENTRIES = 20;
 function loadHistory() {
   try {
     return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-  } catch {
-    return [];
-  }
+  } catch { return []; } // eslint-disable-line no-empty
 }
 
 export function useMatchHistory() {
@@ -34,7 +33,9 @@ export function useMatchHistory() {
       const updated = [entry, ...prev].slice(0, MAX_ENTRIES);
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-      } catch { /* quota */ }
+      } catch (e) {
+        reportError({ message: 'Could not save match history — storage may be full.', context: 'useMatchHistory.addEntry', severity: 'medium', code: 'HISTORY_SAVE_FAIL', cause: e });
+      }
       return updated;
     });
   }, []);
@@ -43,7 +44,7 @@ export function useMatchHistory() {
     setHistory([]);
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch { /* */ }
+    } catch { /* clear history — non-fatal */ } // eslint-disable-line no-empty
   }, []);
 
   return { history, addEntry, clearHistory };

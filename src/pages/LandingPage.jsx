@@ -1,34 +1,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMatchHistory } from '../hooks/useMatchHistory';
+import { reversePortalTransition } from '../utils/portalTransition';
 
 const BRAND_HUB_URL = import.meta.env.VITE_BRAND_HUB_URL || 'http://localhost:5173';
 const TIER_ORDER = { free: 0, plus: 1, pro: 2 };
 const FAMILIMATCH_GRADIENT = 'linear-gradient(145deg, #0a84ff 0%, #5e5ce6 100%)';
-
-function reversePortalTransition(gradient, onNavigate) {
-  const overlay = document.createElement('div');
-  Object.assign(overlay.style, {
-    position: 'fixed', inset: '0', zIndex: '9999', pointerEvents: 'none',
-    background: `radial-gradient(ellipse at 50% 44%, rgba(255,255,255,0.16) 0%, transparent 62%), ${gradient}`,
-    opacity: '0', transform: 'scale(1)', borderRadius: '0',
-    willChange: 'opacity, transform, border-radius',
-    transition: 'opacity 0.12s ease',
-  });
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => requestAnimationFrame(() => { overlay.style.opacity = '1'; }));
-  setTimeout(() => {
-    Object.assign(overlay.style, {
-      transition: [
-        'opacity 0.4s ease-out',
-        'transform 0.45s cubic-bezier(0, 0, 0.6, 1)',
-        'border-radius 0.45s ease',
-      ].join(', '),
-      opacity: '0', transform: 'scale(0)', borderRadius: '50%',
-    });
-    setTimeout(() => { onNavigate(); setTimeout(() => overlay.remove(), 100); }, 430);
-  }, 120);
-}
-import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Users, User, UsersRound, Sparkles, Zap, Heart, ChevronLeft, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useConsent } from '../state/ConsentContext';
@@ -62,7 +39,7 @@ function EmailCapture({ context, heading, subtext }) {
         localStorage.setItem(SUBSCRIBE_KEY, JSON.stringify({ email: trimmed, ts: Date.now() }));
         analytics.trackEmailCaptured(context);
       } else { setStatus('error'); }
-    } catch { setStatus('error'); }
+    } catch { setStatus('error'); } // eslint-disable-line no-empty
   }, [email, context]);
 
   if (status === 'already' || status === 'success') {
@@ -134,16 +111,8 @@ const MODE_CARDS = [
   },
 ];
 
-const SEED = 12847;
 function useComparisonCount() {
-  const [count, setCount] = useState(SEED);
-  useEffect(() => {
-    const tick = setInterval(() => {
-      setCount((c) => c + Math.floor(Math.random() * 3));
-    }, 8000);
-    return () => clearInterval(tick);
-  }, []);
-  return count.toLocaleString();
+  return 'Thousands of';
 }
 
 function Orb({ className }) {
@@ -154,18 +123,26 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { consent } = useConsent();
-  const { setMode } = useMatch();
+  const { setMode, setTierToken: setContextTierToken } = useMatch();
   const [showConsent, setShowConsent] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
   const [showUpgradeFor, setShowUpgradeFor] = useState(null);
   const count = useComparisonCount();
   const { history, clearHistory } = useMatchHistory();
 
-  // Tier from Trail URL param — default to free (Solo only) if absent
+  // Signed tier token from URL param — used for backend WebSocket auth
+  const tierToken = useMemo(() => searchParams.get('token') || '', [searchParams]);
+
+  // Derive display tier from token payload (base64 JSON before the dot)
   const userTier = useMemo(() => {
-    const t = searchParams.get('tier');
-    return (t && TIER_ORDER[t] !== undefined) ? t : 'free';
-  }, [searchParams]);
+    if (!tierToken) return 'free';
+    try {
+      const payloadB64 = tierToken.split('.')[0];
+      const payload = JSON.parse(atob(payloadB64));
+      const t = payload.tier;
+      return (t && TIER_ORDER[t] !== undefined) ? t : 'free';
+    } catch { return 'free'; } // eslint-disable-line no-empty
+  }, [tierToken]);
 
   const isLocked = useCallback((card) => {
     return (TIER_ORDER[card.requiredTier] ?? 0) > (TIER_ORDER[userTier] ?? 0);
@@ -181,10 +158,16 @@ export default function LandingPage() {
     if (!inboundMode) return;
     const card = MODE_CARDS.find(c => c.id === inboundMode);
     if (card && !isLocked(card)) {
+      if (!consent.bipaConsented) {
+        setPendingMode(card);
+        setShowConsent(true);
+        return;
+      }
       setMode(card.id);
+      setContextTierToken(tierToken);
       navigate(card.path, { replace: true });
     }
-  }, [searchParams, isLocked, setMode, navigate]);
+  }, [searchParams, isLocked, setMode, navigate, consent.bipaConsented]);
 
   const handleSelect = (card) => {
     if (isLocked(card)) {
@@ -198,6 +181,7 @@ export default function LandingPage() {
       return;
     }
     setMode(card.id);
+    setContextTierToken(tierToken);
     navigate(card.path);
   };
 
@@ -205,6 +189,7 @@ export default function LandingPage() {
     setShowConsent(false);
     if (pendingMode) {
       setMode(pendingMode.id);
+      setContextTierToken(tierToken);
       navigate(pendingMode.path);
     }
   };
@@ -229,7 +214,7 @@ export default function LandingPage() {
           style={{
             display: 'flex', alignItems: 'center', gap: '8px',
             background: 'none', border: 'none', cursor: 'pointer',
-            color: '#ffffff', padding: 0,
+            color: '#ffffff', padding: 0, minHeight: '44px',
           }}
         >
           <ChevronLeft size={20} color="rgba(255,255,255,0.6)" />
@@ -295,14 +280,14 @@ export default function LandingPage() {
           {['A', 'B'].map((letter) => (
             <div
               key={letter}
-              className="w-28 h-28 rounded-2xl flex items-center justify-center border border-violet-500/20"
+              className="w-24 h-24 rounded-2xl flex items-center justify-center border border-violet-500/20"
               style={{ background: 'rgba(139,92,246,0.08)' }}
             >
               <User size={36} className="text-violet-400/40" />
             </div>
           ))}
           <div
-            className="w-28 h-28 rounded-2xl flex flex-col items-center justify-center border border-pink-500/20 gap-1"
+            className="w-24 h-24 rounded-2xl flex flex-col items-center justify-center border border-pink-500/20 gap-1"
             style={{ background: 'rgba(236,72,153,0.08)' }}
           >
             <Heart size={22} className="text-pink-400/50" />
@@ -450,8 +435,8 @@ export default function LandingPage() {
       </div>
 
       <div className="relative z-10 mt-12 flex gap-6 text-xs text-gray-700">
-        <a href="/privacy" className="hover:text-gray-500 transition-colors">Privacy</a>
-        <a href="/terms" className="hover:text-gray-500 transition-colors">Terms</a>
+        <a href="/privacy" className="hover:text-gray-500 transition-colors min-h-[44px] flex items-center px-3">Privacy</a>
+        <a href="/terms" className="hover:text-gray-500 transition-colors min-h-[44px] flex items-center px-3">Terms</a>
       </div>
 
       {showConsent && <ConsentModal onConsented={handleConsented} />}

@@ -15,9 +15,7 @@ function isConsentGiven() {
     if (!raw) return false;
     const consent = JSON.parse(raw);
     return consent.bipaConsented === true;
-  } catch {
-    return false;
-  }
+  } catch { return false; } // eslint-disable-line no-empty
 }
 
 class Analytics {
@@ -29,8 +27,16 @@ class Analytics {
     this.events = [];
     this.region = this.captureRegion();
     this.isReturning = this.detectReturningVisitor();
-    // Fire session_start after consent state has initialised
-    setTimeout(() => this.track('session_start', { isReturning: this.isReturning }), 0);
+    // FM-018: session_start is deferred until consent is confirmed.
+    // fireSessionStart() must be called explicitly after consent is granted.
+    this._sessionStartFired = false;
+  }
+
+  /** Call after consent is granted to fire the initial session_start event. */
+  fireSessionStart() {
+    if (this._sessionStartFired) return;
+    this._sessionStartFired = true;
+    this.track('session_start', { isReturning: this.isReturning });
   }
 
   getOrCreateVisitorId() {
@@ -43,7 +49,7 @@ class Analytics {
         return id;
       }
       return `ephemeral_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    } catch { return null; }
+    } catch { return null; } // eslint-disable-line no-empty
   }
 
   detectReturningVisitor() {
@@ -52,7 +58,7 @@ class Analytics {
       const count = parseInt(localStorage.getItem('fl:match-visit-count') || '0', 10) + 1;
       localStorage.setItem('fl:match-visit-count', String(count));
       return count > 1;
-    } catch { return false; }
+    } catch { return false; } // eslint-disable-line no-empty
   }
 
   captureRegion() {
@@ -61,7 +67,7 @@ class Analytics {
         language: navigator.language || null,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
       };
-    } catch { return {}; }
+    } catch { return {}; } // eslint-disable-line no-empty
   }
 
   generateSessionId() {
@@ -164,9 +170,7 @@ class Analytics {
         headers,
         body: JSON.stringify(event),
       });
-    } catch {
-      // Silent — never break the app
-    }
+    } catch { /* analytics send — never break the app */ } // eslint-disable-line no-empty
   }
 
   getSessionSummary() {

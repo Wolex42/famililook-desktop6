@@ -5,8 +5,12 @@ const STATUS = {
   DISCONNECTED: 'disconnected',
   CONNECTING: 'connecting',
   CONNECTED: 'connected',
+  RECONNECTING: 'reconnecting',
   ERROR: 'error',
 };
+
+const MAX_RECONNECT_ATTEMPTS = 3;
+const RECONNECT_BASE_DELAY = 1000; // 1s, 2s, 4s exponential backoff
 
 export function useMatchConnection() {
   const [status, setStatus] = useState(STATUS.DISCONNECTED);
@@ -15,6 +19,7 @@ export function useMatchConnection() {
   const [isHost, setIsHost] = useState(false);
   const [players, setPlayers] = useState([]);
   const [error, setError] = useState(null);
+  const [reconnecting, setReconnecting] = useState(false);
 
   // Server-push events
   const [consentRequired, setConsentRequired] = useState(false);
@@ -33,19 +38,97 @@ export function useMatchConnection() {
   const playerIdRef = useRef(playerId);
   playerIdRef.current = playerId;
 
+  // Reconnection state refs (stable across renders)
+  const roomCodeRef = useRef(roomCode);
+  roomCodeRef.current = roomCode;
+  const reconnectAttemptRef = useRef(0);
+  const reconnectTimerRef = useRef(null);
+  const intentionalCloseRef = useRef(false);
+  const tierTokenRef = useRef(null);
+
   const send = useCallback((type, data = {}) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type, data }));
     }
   }, []);
 
+  // Clear any pending reconnect timer
+  const clearReconnectTimer = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
+  }, []);
+
+  // Attempt auto-reconnection with exponential backoff
+  const attemptReconnect = useCallback(() => {
+    const attempt = reconnectAttemptRef.current;
+    if (attempt >= MAX_RECONNECT_ATTEMPTS) {
+      // All retries exhausted
+      setReconnecting(false);
+      setStatus(STATUS.ERROR);
+      setError('Connection lost \u2014 please rejoin the room');
+      reconnectAttemptRef.current = 0;
+      return;
+    }
+
+    const storedPlayerId = playerIdRef.current;
+    const storedRoomCode = roomCodeRef.current;
+
+    if (!storedPlayerId || !storedRoomCode) {
+      // No room session to rejoin — just disconnect
+      setReconnecting(false);
+      setStatus(STATUS.DISCONNECTED);
+      return;
+    }
+
+    setReconnecting(true);
+    setStatus(STATUS.RECONNECTING);
+    setError(null);
+
+    const delay = RECONNECT_BASE_DELAY * Math.pow(2, attempt); // 1s, 2s, 4s
+    reconnectAttemptRef.current = attempt + 1;
+
+    reconnectTimerRef.current = setTimeout(() => {
+      const url = tierTokenRef.current
+        ? `${MATCH_SERVER_URL}?token=${encodeURIComponent(tierTokenRef.current)}`
+        : MATCH_SERVER_URL;
+      const ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        // Send rejoin immediately
+        ws.send(JSON.stringify({
+          type: 'rejoin_room',
+          data: {
+            player_id: storedPlayerId,
+            room_code: storedRoomCode,
+          },
+        }));
+      };
+
+      ws.onmessage = handleMessage;
+
+      ws.onerror = () => {
+        // Will trigger onclose which handles retry
+      };
+
+      ws.onclose = () => {
+        if (wsRef.current === ws && !intentionalCloseRef.current) {
+          // Retry if we haven't exhausted attempts
+          attemptReconnect();
+        }
+      };
+
+      wsRef.current = ws;
+    }, delay);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // handleMessage is stable (no deps), refs used for mutable values
+
   const handleMessage = useCallback((event) => {
     let msg;
     try {
       msg = JSON.parse(event.data);
-    } catch {
-      return;
-    }
+    } catch { return; } // eslint-disable-line no-empty
 
     const { type, data } = msg;
 
@@ -55,6 +138,8 @@ export function useMatchConnection() {
         setPlayerId(data.player_id);
         setIsHost(true);
         setStatus(STATUS.CONNECTED);
+        reconnectAttemptRef.current = 0;
+        setReconnecting(false);
         break;
 
       case 'player_joined':
@@ -63,6 +148,28 @@ export function useMatchConnection() {
           setPlayerId(data.player_id);
         }
         setStatus(STATUS.CONNECTED);
+        reconnectAttemptRef.current = 0;
+        setReconnecting(false);
+        break;
+
+      case 'rejoin_success':
+        // Successfully reconnected — restore state
+        setRoomCode(data.room_code);
+        setPlayerId(data.player_id);
+        setPlayers(data.players || []);
+        setStatus(STATUS.CONNECTED);
+        setReconnecting(false);
+        setError(null);
+        reconnectAttemptRef.current = 0;
+        break;
+
+      case 'player_reconnected':
+        // Another player reconnected — update player list to include them
+        setPlayers((prev) => {
+          const exists = prev.some((p) => p.id === data.player_id);
+          if (exists) return prev;
+          return [...prev, { id: data.player_id, name: data.name }];
+        });
         break;
 
       case 'player_left':
@@ -104,6 +211,12 @@ export function useMatchConnection() {
         break;
 
       case 'error':
+        // If rejoin failed, stop reconnecting and show the error
+        if (reconnectAttemptRef.current > 0 && data.message?.includes('Rejoin failed')) {
+          setReconnecting(false);
+          reconnectAttemptRef.current = 0;
+          setStatus(STATUS.ERROR);
+        }
         setError(data.message);
         break;
 
@@ -112,8 +225,10 @@ export function useMatchConnection() {
     }
   }, []); // No dependencies — uses refs for mutable values
 
-  const connect = useCallback((onReady) => {
+  const connect = useCallback((onReady, tierToken) => {
     // Close previous connection cleanly
+    intentionalCloseRef.current = true;
+    clearReconnectTimer();
     if (wsRef.current) {
       const old = wsRef.current;
       wsRef.current = null;
@@ -123,8 +238,18 @@ export function useMatchConnection() {
 
     setStatus(STATUS.CONNECTING);
     setError(null);
+    setReconnecting(false);
+    reconnectAttemptRef.current = 0;
+    intentionalCloseRef.current = false;
 
-    const ws = new WebSocket(MATCH_SERVER_URL);
+    // Store tier token for reconnection
+    tierTokenRef.current = tierToken || null;
+
+    // Append tier token to WebSocket URL if provided
+    const url = tierToken
+      ? `${MATCH_SERVER_URL}?token=${encodeURIComponent(tierToken)}`
+      : MATCH_SERVER_URL;
+    const ws = new WebSocket(url);
 
     ws.onopen = () => {
       setStatus(STATUS.CONNECTED);
@@ -134,19 +259,27 @@ export function useMatchConnection() {
     ws.onmessage = handleMessage;
 
     ws.onerror = () => {
-      setStatus(STATUS.ERROR);
-      setError('Connection error');
+      if (!intentionalCloseRef.current) {
+        setStatus(STATUS.ERROR);
+        setError('Connection error');
+      }
     };
 
     ws.onclose = () => {
-      // Only update status if this is still the active WebSocket
-      if (wsRef.current === ws) {
-        setStatus(STATUS.DISCONNECTED);
+      // Only attempt reconnect if this is still the active WebSocket
+      // and the close was not intentional (leave/unmount)
+      if (wsRef.current === ws && !intentionalCloseRef.current) {
+        // If we have a room session, try to reconnect
+        if (playerIdRef.current && roomCodeRef.current) {
+          attemptReconnect();
+        } else {
+          setStatus(STATUS.DISCONNECTED);
+        }
       }
     };
 
     wsRef.current = ws;
-  }, [handleMessage]);
+  }, [handleMessage, attemptReconnect, clearReconnectTimer]);
 
   const createRoom = useCallback((name, roomType = 'duo') => {
     send('create_room', { name, room_type: roomType });
@@ -177,6 +310,8 @@ export function useMatchConnection() {
   }, [send]);
 
   const leave = useCallback(() => {
+    intentionalCloseRef.current = true;
+    clearReconnectTimer();
     send('leave', {});
     setRoomCode(null);
     setPlayerId(null);
@@ -188,22 +323,27 @@ export function useMatchConnection() {
     setPhotosReady(false);
     setConsentRequired(false);
     setGameStarted(false);
+    setReconnecting(false);
+    setError(null);
+    reconnectAttemptRef.current = 0;
     setStatus(STATUS.DISCONNECTED);
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-  }, [send]);
+  }, [send, clearReconnectTimer]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      intentionalCloseRef.current = true;
+      clearReconnectTimer();
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;
       }
     };
-  }, []);
+  }, [clearReconnectTimer]);
 
   return {
     status,
@@ -212,6 +352,7 @@ export function useMatchConnection() {
     isHost,
     players,
     error,
+    reconnecting,
     consentRequired,
     gameStarted,
     photosReady,

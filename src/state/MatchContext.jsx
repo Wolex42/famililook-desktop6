@@ -1,86 +1,70 @@
-import { createContext, useContext, useReducer, useCallback } from 'react';
+/**
+ * MatchContext — shared state for FamiliMatch sessions.
+ *
+ * Exposes via useMatch():
+ *   userName  / setUserName   — persisted to sessionStorage at 'fm:username'
+ *   mode      / setMode       — 'solo' | 'duo' | 'group'
+ *   results   / setResults    — latest comparison results (backend-authoritative)
+ *   tierToken / setTierToken  — signed HMAC token for Duo/Group tier gating
+ *   resetMatch()              — clear results + mode + tierToken for a fresh run
+ */
 
-const MatchContext = createContext(null);
+import { createContext, useContext, useState, useCallback, useMemo } from 'react';
 
-const initialState = {
-  mode: null,        // 'solo' | 'duo' | 'group'
-  roomCode: null,
-  isHost: false,
-  playerId: null,
-  playerName: '',
-  userName: sessionStorage.getItem('fm:username') || '',  // persisted display name
-  players: [],       // [{ id, name, hasPhoto }]
-  myPhoto: null,     // base64 data URL
-  status: 'idle',    // idle | connecting | lobby | uploading | waiting | analyzing | countdown | results
-  results: null,     // CompatibilityResult or group matrix
-  error: null,
-};
+const USERNAME_KEY = 'fm:username';
 
-function reducer(state, action) {
-  switch (action.type) {
-    case 'SET_MODE':
-      return { ...initialState, mode: action.mode };
-    case 'SET_PLAYER_NAME':
-      return { ...state, playerName: action.name };
-    case 'SET_USERNAME':
-      sessionStorage.setItem('fm:username', action.name);
-      return { ...state, userName: action.name };
-    case 'SET_ROOM':
-      return {
-        ...state,
-        roomCode: action.roomCode,
-        isHost: action.isHost,
-        playerId: action.playerId,
-        status: 'lobby',
-      };
-    case 'SET_STATUS':
-      return { ...state, status: action.status, error: null };
-    case 'SET_PHOTO':
-      return { ...state, myPhoto: action.photo };
-    case 'UPDATE_PLAYERS':
-      return { ...state, players: action.players };
-    case 'SET_RESULTS':
-      return { ...state, results: action.results, status: 'results' };
-    case 'SET_ERROR':
-      return { ...state, error: action.error, status: 'idle' };
-    case 'RESET':
-      return { ...initialState };
-    default:
-      return state;
-  }
+function loadUserName() {
+  try {
+    return sessionStorage.getItem(USERNAME_KEY) || '';
+  } catch { return ''; } // eslint-disable-line no-empty
 }
 
-export function MatchProvider({ children }) {
-  const [state, dispatch] = useReducer(reducer, initialState);
+function saveUserName(name) {
+  try {
+    if (name) {
+      sessionStorage.setItem(USERNAME_KEY, name);
+    } else {
+      sessionStorage.removeItem(USERNAME_KEY);
+    }
+  } catch { /* non-fatal */ } // eslint-disable-line no-empty
+}
 
-  const setMode = useCallback((mode) => dispatch({ type: 'SET_MODE', mode }), []);
-  const setPlayerName = useCallback((name) => dispatch({ type: 'SET_PLAYER_NAME', name }), []);
-  const setUserName = useCallback((name) => dispatch({ type: 'SET_USERNAME', name }), []);
-  const setRoom = useCallback((roomCode, isHost, playerId) =>
-    dispatch({ type: 'SET_ROOM', roomCode, isHost, playerId }), []);
-  const setStatus = useCallback((status) => dispatch({ type: 'SET_STATUS', status }), []);
-  const setPhoto = useCallback((photo) => dispatch({ type: 'SET_PHOTO', photo }), []);
-  const updatePlayers = useCallback((players) => dispatch({ type: 'UPDATE_PLAYERS', players }), []);
-  const setResults = useCallback((results) => dispatch({ type: 'SET_RESULTS', results }), []);
-  const setError = useCallback((error) => dispatch({ type: 'SET_ERROR', error }), []);
-  const reset = useCallback(() => dispatch({ type: 'RESET' }), []);
+const MatchContext = createContext(undefined);
+
+export function MatchProvider({ children }) {
+  const [userName, setUserNameState] = useState(loadUserName);
+  const [mode, setMode] = useState('solo');
+  const [results, setResults] = useState(null);
+  const [tierToken, setTierToken] = useState('');
+
+  const setUserName = useCallback((name) => {
+    setUserNameState(name);
+    saveUserName(name);
+  }, []);
+
+  const resetMatch = useCallback(() => {
+    setMode('solo');
+    setResults(null);
+    setTierToken('');
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      userName,
+      setUserName,
+      mode,
+      setMode,
+      results,
+      setResults,
+      tierToken,
+      setTierToken,
+      resetMatch,
+    }),
+    [userName, setUserName, mode, results, tierToken, resetMatch],
+  );
 
   return (
-    <MatchContext.Provider
-      value={{
-        ...state,
-        setMode,
-        setPlayerName,
-        setUserName,
-        setRoom,
-        setStatus,
-        setPhoto,
-        updatePlayers,
-        setResults,
-        setError,
-        reset,
-      }}
-    >
+    <MatchContext.Provider value={value}>
       {children}
     </MatchContext.Provider>
   );
@@ -88,6 +72,8 @@ export function MatchProvider({ children }) {
 
 export function useMatch() {
   const ctx = useContext(MatchContext);
-  if (!ctx) throw new Error('useMatch must be inside MatchProvider');
+  if (ctx === undefined) {
+    throw new Error('useMatch must be used within a MatchProvider');
+  }
   return ctx;
 }
