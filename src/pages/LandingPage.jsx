@@ -475,7 +475,7 @@ export default function LandingPage() {
               Compare face-to-face with friends in real time.
             </p>
             <div className="text-2xl font-black text-white mb-1">
-              £4.99<span className="text-sm font-normal text-gray-500">/month</span>
+              £3.99<span className="text-sm font-normal text-gray-500">/month</span>
             </div>
             <p className="text-xs text-gray-600 mb-4">Cancel anytime. Covers all FamiliLook products.</p>
             <input
