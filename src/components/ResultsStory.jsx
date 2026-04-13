@@ -289,7 +289,7 @@ function FusionSlide({ fusionImage }) {
         {fusionImage ? (
           <div className="relative mx-auto w-48 h-48 rounded-2xl overflow-hidden border border-white/10">
             <img
-              src={`data:image/png;base64,${fusionImage}`}
+              src={fusionImage.startsWith('data:') ? fusionImage : `data:image/png;base64,${fusionImage}`}
               alt="Face fusion"
               className="w-full h-full object-cover"
             />
