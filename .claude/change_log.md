@@ -5,6 +5,21 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-14 — Sprint D1: Playwright E2E setup (CR-E2E-D6-01)
+
+**Description:** Installed Playwright with Chromium. Created `playwright.config.js` (port 5174, iPhone 14 Pro viewport, strictPort). Added `test:e2e` script. Created `e2e/solo-flow.spec.js` with 14 E2E tests covering:
+- Landing page (hero, mode cards, tier gating, upgrade modal, privacy/terms links)
+- Solo flow navigation (consent gate, upload UI, compare button state, back button with onboarding dismissal)
+- Privacy note visibility
+- Direct URL navigation (/solo, /privacy, /terms, unknown routes)
+
+**Files added:** `playwright.config.js`, `e2e/solo-flow.spec.js`
+**Files modified:** `package.json` (added @playwright/test + test:e2e script)
+**Tests:** 51 unit tests + 14 E2E tests PASS, build PASS
+**Status:** COMPLETE
+
+---
+
 ## 2026-04-14 — Wire @famililook/shared dependency (CR-SHARED-WIRE-D6)
 
 **Description:** Added `@famililook/shared: file:../famililook-shared` to dependencies. npm creates symlink at node_modules/@famililook/shared → ../../famililook-shared. No source code changes — desktop6 is not yet consuming any shared modules in its source.

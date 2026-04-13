@@ -11,18 +11,20 @@
     "test:run": "vitest run",
     "test:watch": "vitest --watch",
     "lint": "eslint .",
+    "test:e2e": "npx playwright test",
     "verify": "npm run lint && npm run test:run && npm run build"
   },
   "dependencies": {
+    "@famililook/shared": "file:../famililook-shared",
     "framer-motion": "^12.34.3",
     "html2canvas": "^1.4.1",
     "lucide-react": "^0.473.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^7.9.5",
-    "@famililook/shared": "file:../famililook-shared"
+    "react-router-dom": "^7.9.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",
     "@testing-library/user-event": "^14.6.1",
