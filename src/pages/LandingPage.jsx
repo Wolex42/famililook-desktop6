@@ -123,6 +123,7 @@ export default function LandingPage() {
   const [pendingMode, setPendingMode] = useState(null);
   const [showUpgradeFor, setShowUpgradeFor] = useState(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeEmail, setUpgradeEmail] = useState('');
   const { history, clearHistory } = useMatchHistory();
 
   // Signed tier token from URL param — used for backend WebSocket auth
@@ -190,7 +191,7 @@ export default function LandingPage() {
         headers,
         body: JSON.stringify({
           priceId: 'price_1T8FigPClYbZfOAq4g2rmnXD',
-          email: '',
+          email: upgradeEmail.trim(),
           successUrl: `${window.location.origin}/?upgraded=plus`,
           cancelUrl: window.location.href,
         }),
@@ -476,10 +477,16 @@ export default function LandingPage() {
             <div className="text-2xl font-black text-white mb-1">
               £4.99<span className="text-sm font-normal text-gray-500">/month</span>
             </div>
-            <p className="text-xs text-gray-600 mb-5">Cancel anytime. Covers all FamiliLook products.</p>
+            <p className="text-xs text-gray-600 mb-4">Cancel anytime. Covers all FamiliLook products.</p>
+            <input
+              type="email" placeholder="your@email.com" value={upgradeEmail}
+              onChange={(e) => setUpgradeEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-purple-500 mb-4"
+              style={{ minHeight: 44 }}
+            />
             <button
               onClick={handleUpgradeCheckout}
-              disabled={upgradeLoading}
+              disabled={upgradeLoading || !upgradeEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(upgradeEmail)}
               className="block w-full py-3 rounded-xl font-bold text-sm text-white mb-3"
               style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)', opacity: upgradeLoading ? 0.6 : 1, cursor: upgradeLoading ? 'wait' : 'pointer', minHeight: 44 }}
             >
