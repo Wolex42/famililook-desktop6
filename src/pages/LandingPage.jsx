@@ -122,6 +122,7 @@ export default function LandingPage() {
   const [showConsent, setShowConsent] = useState(false);
   const [pendingMode, setPendingMode] = useState(null);
   const [showUpgradeFor, setShowUpgradeFor] = useState(null);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
   const { history, clearHistory } = useMatchHistory();
 
   // Signed tier token from URL param — used for backend WebSocket auth
@@ -177,6 +178,33 @@ export default function LandingPage() {
     setMode(card.id);
     setContextTierToken(tierToken);
     navigate(card.path);
+  };
+
+  const handleUpgradeCheckout = async () => {
+    setUpgradeLoading(true);
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (API_KEY) headers['X-API-Key'] = API_KEY;
+      const resp = await fetch(`${API_BASE}/payments/create-subscription-checkout`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          priceId: 'price_1T8FigPClYbZfOAq4g2rmnXD',
+          email: '',
+          successUrl: `${window.location.origin}/?upgraded=plus`,
+          cancelUrl: window.location.href,
+        }),
+      });
+      const data = await resp.json();
+      if (data.checkoutUrl) {
+        analytics.track('upgrade_checkout_started', { mode: showUpgradeFor?.id, tier: 'plus' });
+        window.location.href = data.checkoutUrl;
+      }
+    } catch (err) {
+      console.warn('Checkout failed:', err);
+    } finally {
+      setUpgradeLoading(false);
+    }
   };
 
   const handleConsented = () => {
@@ -440,22 +468,26 @@ export default function LandingPage() {
               <Lock size={24} className="text-purple-400" />
             </div>
             <h3 className="text-lg font-bold text-white mb-2">
-              {showUpgradeFor.title} requires Plus
+              Unlock {showUpgradeFor.title} Mode
             </h3>
-            <p className="text-sm text-gray-400 mb-5">
-              Upgrade your plan on FamiliLook to unlock {showUpgradeFor.title} mode and more.
+            <p className="text-sm text-gray-400 mb-2">
+              Compare face-to-face with friends in real time.
             </p>
-            <a
-              href="https://famililook.com/plans"
-              target="_blank" rel="noopener noreferrer"
+            <div className="text-2xl font-black text-white mb-1">
+              £4.99<span className="text-sm font-normal text-gray-500">/month</span>
+            </div>
+            <p className="text-xs text-gray-600 mb-5">Cancel anytime. Covers all FamiliLook products.</p>
+            <button
+              onClick={handleUpgradeCheckout}
+              disabled={upgradeLoading}
               className="block w-full py-3 rounded-xl font-bold text-sm text-white mb-3"
-              style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)' }}
+              style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)', opacity: upgradeLoading ? 0.6 : 1, cursor: upgradeLoading ? 'wait' : 'pointer', minHeight: 44 }}
             >
-              Upgrade to Plus
-            </a>
+              {upgradeLoading ? 'Redirecting to checkout...' : 'Upgrade to Plus'}
+            </button>
             <button
               onClick={() => setShowUpgradeFor(null)}
-              className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+              className="text-sm text-gray-500 hover:text-gray-300 transition-colors min-h-[44px]"
             >
               Maybe later
             </button>
