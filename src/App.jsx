@@ -9,7 +9,8 @@ const SoloPage    = lazy(() => import('./pages/SoloPage'));
 const RoomPage    = lazy(() => import('./pages/RoomPage'));
 const ResultsPage = lazy(() => import('./pages/ResultsPage'));
 const PrivacyPage = lazy(() => import('./pages/PrivacyPage'));
-const TermsPage   = lazy(() => import('./pages/TermsPage'));
+const TermsPage       = lazy(() => import('./pages/TermsPage'));
+const ChallengePage   = lazy(() => import('./pages/ChallengePage'));
 
 function LoadingFallback() {
   return (
@@ -42,7 +43,8 @@ export default function App() {
               <Route path="/room"    element={<RoomPage />} />
               <Route path="/results" element={<ResultsPage />} />
               <Route path="/privacy" element={<PrivacyPage />} />
-              <Route path="/terms"   element={<TermsPage />} />
+              <Route path="/terms"      element={<TermsPage />} />
+              <Route path="/challenge/:id" element={<ChallengePage />} />
             </Routes>
           </Suspense>
           <ErrorToast />

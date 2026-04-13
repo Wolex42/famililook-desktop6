@@ -140,3 +140,44 @@ export async function compareSolo(photoA, photoB, onProgress, nameA = 'Person A'
     name_b: result.name_b || 'Person B',
   };
 }
+
+// ── Challenge-a-friend API ──────────────────────────────────
+
+/**
+ * Create a challenge from a Solo result.
+ * Sends the user's photo to the server for storage (7-day TTL).
+ */
+export async function createChallenge(photoDataUrl, name, percentage, chemistry_label, chemistry_color) {
+  const blob = dataUrlToBlob(photoDataUrl);
+  const fd = new FormData();
+  fd.append('photo', blob, 'photo.jpg');
+  fd.append('name', name);
+  fd.append('percentage', String(percentage));
+  fd.append('chemistry_label', chemistry_label);
+  fd.append('chemistry_color', chemistry_color);
+  return postForm('/challenge/create', fd);
+}
+
+/**
+ * Get challenge metadata (name, score). Does NOT return photo.
+ */
+export async function getChallenge(challengeId) {
+  const headers = { ...getBiometricHeaders(), ...(API_KEY ? { 'X-API-Key': API_KEY } : {}) };
+  const resp = await fetch(`${API_BASE}/challenge/${challengeId}`, { headers });
+  if (!resp.ok) {
+    if (resp.status === 404) return null;
+    throw new Error(`Challenge fetch failed: ${resp.status}`);
+  }
+  return resp.json();
+}
+
+/**
+ * Accept a challenge — upload photo and compare against challenger.
+ */
+export async function acceptChallenge(challengeId, photoDataUrl, name) {
+  const blob = dataUrlToBlob(photoDataUrl);
+  const fd = new FormData();
+  fd.append('photo', blob, 'photo.jpg');
+  fd.append('name', name || 'Challenger');
+  return postForm(`/challenge/${challengeId}/accept`, fd);
+}

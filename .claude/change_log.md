@@ -5,6 +5,83 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-13 — Phase A3: Challenge a Friend mechanic (CR-MATCH-A3)
+
+**Risk Tier**: P1 (growth feature — viral loop)
+**Approved by**: CEO (spec approved prior session, diffs approved this session)
+**Executed by**: BE Lead (desktop7) + FE Lead (desktop6) agents
+**Backend permission**: CEO granted for desktop7 POST /challenge/create + GET /challenge/{id} + POST /challenge/{id}/accept
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-13 | desktop7 | Code | NEW app/challenges.py: 3 endpoints (create, get, accept). In-memory store, 7-day TTL, 10/IP rate limit, Pydantic validated | CR-MATCH-A3-01 | P1 | CLOSED |
+| 2026-04-13 | desktop7 | Code | Registered challenges_router in main.py | CR-MATCH-A3-02 | P3 | CLOSED |
+| 2026-04-13 | desktop7 | Config | Added /challenge/* route to Caddyfile → match-server:8030 | CR-MATCH-A3-03 | P2 | CLOSED |
+| 2026-04-13 | desktop6 | Code | matchClient.js: added createChallenge, getChallenge, acceptChallenge API functions | CR-MATCH-A3-04 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | App.jsx: added /challenge/:id route → ChallengePage (lazy loaded) | CR-MATCH-A3-05 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | SoloPage.jsx: added "Challenge [Name]" button on results, creates challenge + native share | CR-MATCH-A3-06 | P1 | CLOSED |
+| 2026-04-13 | desktop6 | Code | NEW ChallengePage.jsx: full challenge landing (fetch metadata, accept, photo upload, comparison, results, loop) | CR-MATCH-A3-07 | P1 | CLOSED |
+
+**Tests**: desktop6 51/51 passed, desktop7 111/120 passed (9 pre-existing protocol count failures). Build succeeded.
+**Analytics events**: challenge_created, challenge_opened, challenge_completed (with beat_challenger flag)
+
+---
+
+## 2026-04-13 — Hotfix: AppErrorBus inline for Vercel (CR-MATCH-HF-01)
+
+**Risk Tier**: P2 (infrastructure — dependency removal + code inline)
+**Approved by**: NOT APPROVED (governance bypass — retroactive logging)
+**Executed by**: Direct edit (no agent involvement)
+**Reviewed by**: Platform Architect, QA Lead, Change Manager (retroactive review 2026-04-13)
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-13 | desktop6 | Code | Replaced @famililook/shared re-export with full 276-line inlined AppErrorBus module | CR-MATCH-HF-01a | P2 | CLOSED |
+| 2026-04-13 | desktop6 | Dep | Removed @famililook/shared from package.json dependencies | CR-MATCH-HF-01b | P2 | CLOSED |
+| 2026-04-13 | desktop6 | Dep | Regenerated package-lock.json after dependency removal | CR-MATCH-HF-01c | P3 | CLOSED |
+
+**Governance note**: Applied without validate_scope, diff preview, or CEO approval. Retroactively logged.
+**Cross-repo impact**: Disconnects desktop6 from famililook-shared. Packaging strategy unresolved for Vercel.
+**Platform Architect conditions**: Add SYNC-SOURCE header. Resolve Vercel packaging strategy this sprint.
+**QA Lead conditions**: Port AppErrorBus unit tests to desktop6. Zero direct test coverage currently.
+
+---
+
+## 2026-04-13 — Hotfix: Fusion image double data-URL prefix (CR-MATCH-HF-02)
+
+**Risk Tier**: P3 (single-line display bugfix)
+**Approved by**: NOT APPROVED (governance bypass — retroactive logging)
+**Executed by**: Direct edit (no agent involvement)
+**Reviewed by**: Platform Architect, QA Lead, Change Manager (retroactive review 2026-04-13)
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-13 | desktop6 | Code | Added defensive data: prefix check in FusionSlide to prevent double-prefixing when backend returns full data URL | CR-MATCH-HF-02 | P3 | CLOSED |
+
+**Governance note**: Applied without validate_scope, diff preview, or CEO approval. Retroactively logged.
+**Platform Architect finding**: SYMPTOM fix — root cause is matchClient.js should normalise fusion_image. Fallback MIME type says png but backend returns jpeg. P2 action: move normalisation to matchClient.js.
+**Patch count warning**: ResultsStory.jsx now at 4 patches in 30 days — exceeds 3-patch threshold. Next patch MUST route to /crew redesign.
+**QA Lead conditions**: Add ResultsStory render tests for fusion image handling.
+
+---
+
+## 2026-04-13 — Hotfix: Hetzner .env CORS origins (CR-MATCH-HF-03)
+
+**Risk Tier**: P2 (production server config — affects all products via desktop3)
+**Approved by**: NOT APPROVED (governance bypass — retroactive logging)
+**Executed by**: Direct server edit (no agent involvement)
+**Reviewed by**: Platform Architect, QA Lead, Change Manager (retroactive review 2026-04-13)
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-13 | desktop3 (server) | Config | Added https://familimatch.com,https://www.familimatch.com to CORS_ORIGINS env var on Hetzner | CR-MATCH-HF-03 | P2 | CLOSED |
+
+**Governance note**: No git trace. Server-only .env change. Applied without validate_scope or CEO approval. Retroactively logged.
+**Cross-repo impact**: Affects desktop3 which serves ALL products. CORS_ORIGINS env var verified to include all required domains.
+**Architecture note**: config.py uses override (not merge) pattern for CORS_ORIGINS env var — fragile. P2 action: fix to merge pattern (requires CEO backend permission).
+
+---
+
 ## 2026-04-13 — Phase A2: Viral unlock — result reveal + share card (CR-MATCH-A2)
 
 **Risk Tier**: P1 (growth feature)

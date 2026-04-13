@@ -4,8 +4,11 @@
  * Vanilla JS event emitter. No React context, no class syntax, no persistence.
  * Importable from any module (React components, utils, API clients).
  *
- * Note: Inlined from famililook-shared for Vercel compatibility
- * (file: dependency references don't resolve on Vercel).
+ * SYNC-SOURCE: famililook-shared/src/infrastructure/AppErrorBus.js
+ * SYNC-DATE: 2026-04-13
+ * REASON: Inlined for Vercel compatibility (file: dependency doesn't resolve).
+ * Any edit to the canonical source must be manually synced here until
+ * famililook-shared is published to npm or a monorepo bundler is adopted.
  *
  * @module AppErrorBus
  */

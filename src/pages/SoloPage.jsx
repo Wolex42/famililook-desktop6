@@ -28,6 +28,7 @@ export default function SoloPage() {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [showShare, setShowShare] = useState(false);
+  const [creatingChallenge, setCreatingChallenge] = useState(false);
   const [personBName, setPersonBName] = useState('');
   const { addEntry } = useMatchHistory();
 
@@ -79,6 +80,33 @@ export default function SoloPage() {
     setPhotoB(null);
     setResults(null);
     setError(null);
+  };
+
+  const handleCreateChallenge = async () => {
+    if (!results || !photoA) return;
+    setCreatingChallenge(true);
+    try {
+      const { createChallenge } = await import('../api/matchClient');
+      const res = await createChallenge(
+        photoA, userName || 'Someone',
+        results.percentage, results.chemistry_label, results.chemistry_color
+      );
+      if (res?.challenge_id) {
+        const url = `${window.location.origin}/challenge/${res.challenge_id}`;
+        const text = `${userName || 'Someone'} scored ${results.percentage}% on FamiliMatch. Think you can beat it?\n${url}`;
+        if (navigator.share) {
+          await navigator.share({ text });
+        } else {
+          await navigator.clipboard?.writeText(url);
+          alert('Challenge link copied!');
+        }
+        analytics.track('challenge_created', { challenge_id: res.challenge_id, percentage: results.percentage });
+      }
+    } catch (err) {
+      console.warn('Challenge creation failed:', err);
+    } finally {
+      setCreatingChallenge(false);
+    }
   };
 
   const canCompare = photoA && photoB && !analyzing;
@@ -261,18 +289,32 @@ export default function SoloPage() {
                   nameA={userName || undefined}
                   onReset={handleReset}
                 />
-                {/* Share button */}
-                <div style={{ textAlign: 'center', marginTop: 16 }}>
+                {/* Share + Challenge buttons */}
+                <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
                   <button
                     onClick={() => setShowShare(true)}
                     style={{
-                      padding: '12px 28px', borderRadius: 99,
+                      padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
                       background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
                       border: 'none', color: '#fff', fontSize: 15, fontWeight: 700,
                       cursor: 'pointer', minHeight: 44,
                     }}
                   >
                     Share Your Score
+                  </button>
+                  <button
+                    onClick={handleCreateChallenge}
+                    disabled={creatingChallenge}
+                    style={{
+                      padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
+                      background: 'transparent',
+                      border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)',
+                      fontSize: 15, fontWeight: 600,
+                      cursor: creatingChallenge ? 'wait' : 'pointer', minHeight: 44,
+                      opacity: creatingChallenge ? 0.6 : 1,
+                    }}
+                  >
+                    {creatingChallenge ? 'Creating...' : `Challenge ${results?.name_b || 'a Friend'} 🎯`}
                   </button>
                 </div>
               </motion.div>
