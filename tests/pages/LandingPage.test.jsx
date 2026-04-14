@@ -149,7 +149,7 @@ describe('LandingPage', () => {
       renderLanding();
 
       // Click the primary CTA button (Try It Now)
-      const ctaButton = screen.getByText(/Try It Now/);
+      const ctaButton = screen.getByText(/Compare Now/);
       fireEvent.click(ctaButton);
 
       // Consent modal should appear

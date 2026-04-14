@@ -1,376 +1,318 @@
-import { useState, useEffect } from 'react';
+/**
+ * RoomLobby — lobby screen for Duo/Group rooms in FamiliMatch.
+ *
+ * Props:
+ *   connection: object  — from useMatchConnection() hook
+ *   onRoomReady: () => void — called when host starts the game
+ *
+ * Host flow: "Create Room" -> shows room code + player list + "Start" button
+ * Guest flow: enter room code + "Join" button
+ * Displays connected players as they join.
+ * "Start" button is host-only, enabled when enough players are connected.
+ */
+
+import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, Check, Users, Crown, ArrowLeft, Zap } from 'lucide-react';
+import { Users, Copy, Check, Loader2, LogIn, Play } from 'lucide-react';
 import { useMatch } from '../state/MatchContext';
 
-// ── Room name generator (deterministic from room code) ─────────────
-const ADJECTIVES = ['Cosmic', 'Crystal', 'Electric', 'Golden', 'Magnetic', 'Stellar', 'Vivid', 'Radiant', 'Prism', 'Solar'];
-const NOUNS      = ['Lab', 'Arena', 'Studio', 'Hub', 'Vault', 'Lounge', 'Chamber', 'Nexus', 'Forge', 'Realm'];
+const MIN_PLAYERS_DUO  = 2;
+const MIN_PLAYERS_GROUP = 3;
 
-function getRoomName(code) {
-  if (!code) return '';
-  const n = code.split('').reduce((a, c) => a + c.charCodeAt(0), 0);
-  return `${ADJECTIVES[n % ADJECTIVES.length]} ${NOUNS[Math.floor(n / ADJECTIVES.length) % NOUNS.length]}`;
-}
-
-// ── Avatar gradient palette (deterministic from player name) ───────
-const AVATAR_GRADIENTS = [
-  'from-violet-500 to-pink-500',
-  'from-cyan-400 to-blue-500',
-  'from-amber-400 to-orange-500',
-  'from-emerald-400 to-teal-500',
-  'from-pink-400 to-rose-500',
-  'from-purple-400 to-indigo-500',
-];
-
-function getAvatarGradient(name = '') {
-  const h = name.split('').reduce((a, c) => ((a << 5) - a + c.charCodeAt(0)) | 0, 0);
-  return AVATAR_GRADIENTS[Math.abs(h) % AVATAR_GRADIENTS.length];
-}
-
-// ── Ambient tips shown while waiting in lobby ──────────────────────
-const TIPS = [
-  'The AI analyses 8 facial features — eyes, brows, smile, nose, face shape, skin, hair & ears',
-  'Use a clear, well-lit photo facing forward for the most accurate results',
-  'Every pair of players is compared — who will score the highest match?',
-  'All results are revealed at the exact same moment — no spoilers!',
-  'The face fusion shows what a blend of your features would look like',
-];
-
-// ── Input style (shared) ───────────────────────────────────────────
-const inputCls = `
-  w-full px-4 py-4 rounded-2xl
-  bg-white/[0.05] border border-white/10
-  text-white placeholder-white/20 text-base font-medium
-  focus:border-violet-400/50 focus:bg-white/[0.07] focus:outline-none
-  transition-all duration-200
-`.trim();
-
-// ── Gradient CTA button ────────────────────────────────────────────
-function GradientBtn({ children, onClick, disabled, className = '' }) {
+function PlayerChip({ player, isYou }) {
   return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`
-        w-full py-4 rounded-2xl font-bold text-base text-white
-        transition-all duration-200 active:scale-[0.97]
-        ${disabled
-          ? 'bg-white/[0.05] border border-white/10 text-white/25 cursor-not-allowed'
-          : 'bg-gradient-to-r from-violet-500 to-pink-500 hover:from-violet-400 hover:to-pink-400 shadow-lg shadow-violet-500/20'
-        }
-        ${className}
-      `}
+    <motion.div
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0.8, opacity: 0 }}
+      className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] border border-white/10"
     >
-      {children}
-    </button>
+      <div
+        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
+        style={{ background: 'linear-gradient(145deg, #0a84ff, #5e5ce6)' }}
+      >
+        {(player.name || '?')[0].toUpperCase()}
+      </div>
+      <span className="text-sm text-white/80 font-medium">
+        {player.name || 'Player'}
+      </span>
+      {isYou && (
+        <span className="text-xs text-blue-400 font-semibold">(You)</span>
+      )}
+    </motion.div>
+  );
+}
+
+function RoomCodeDisplay({ code }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback: select + copy
+      const input = document.createElement('input');
+      input.value = code;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }, [code]);
+
+  return (
+    <div className="text-center space-y-2">
+      <p className="text-xs text-white/40 uppercase tracking-wider">Room Code</p>
+      <button
+        onClick={handleCopy}
+        className="flex items-center gap-3 mx-auto px-6 py-3 rounded-2xl bg-white/[0.06] border border-white/10 hover:bg-white/[0.10] transition-all"
+        style={{ minHeight: 44 }}
+      >
+        <span className="text-2xl font-mono font-black tracking-[0.3em] text-white">
+          {code}
+        </span>
+        {copied ? (
+          <Check size={18} className="text-green-400" />
+        ) : (
+          <Copy size={18} className="text-white/40" />
+        )}
+      </button>
+      <p className="text-xs text-white/25">
+        {copied ? 'Copied!' : 'Tap to copy'}
+      </p>
+      {/* GAP-08: Room code expiry notice */}
+      <p className="text-xs text-white/30 mt-1">
+        Code expires in 15 minutes
+      </p>
+    </div>
   );
 }
 
 export default function RoomLobby({ connection, onRoomReady }) {
-  const { mode, playerName, setPlayerName } = useMatch();
-  const [lobbyMode, setLobbyMode]           = useState(null); // null | 'host' | 'join-input' | 'join'
-  const [joinCode, setJoinCode]             = useState('');
-  const [copied, setCopied]                 = useState(false);
-  const [tipIndex, setTipIndex]             = useState(0);
+  const { mode, userName, tierToken } = useMatch();
+  const [joinCode, setJoinCode] = useState('');
+  const [view, setView] = useState('choose'); // 'choose' | 'host' | 'guest'
 
-  const isGroup   = mode === 'group';
-  const minPlayers = isGroup ? 3 : 2;
-  const canStart  = connection.players.length >= minPlayers;
-  const roomName  = getRoomName(connection.roomCode);
+  const {
+    status,
+    roomCode,
+    playerId,
+    isHost,
+    players,
+    error,
+    connect,
+    createRoom,
+    joinRoom,
+  } = connection;
 
-  // Rotate tips every 6 s while in the in-room lobby
-  useEffect(() => {
-    if (!connection.roomCode) return;
-    const id = setInterval(() => setTipIndex(i => (i + 1) % TIPS.length), 6000);
-    return () => clearInterval(id);
-  }, [connection.roomCode]);
+  // GAP-08: Detect room-not-found / expired errors
+  const isRoomExpiredError = error && (
+    error.toLowerCase().includes('not found') ||
+    error.toLowerCase().includes('expired') ||
+    error.toLowerCase().includes('invalid room')
+  );
 
-  const handleCopy = async () => {
-    if (!connection.roomCode) return;
-    await navigator.clipboard.writeText(connection.roomCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
+  const isGroup = mode === 'group';
+  const minPlayers = isGroup ? MIN_PLAYERS_GROUP : MIN_PLAYERS_DUO;
+  const canStart = isHost && players.length >= minPlayers;
 
-  // ── Phase 1: Name entry + Create / Join choice ─────────────────
-  if (!lobbyMode) {
+  const handleCreateRoom = useCallback(() => {
+    setView('host');
+    connect(() => {
+      createRoom(userName || 'Host', isGroup ? 'group' : 'duo');
+    }, tierToken);
+  }, [connect, createRoom, userName, isGroup, tierToken]);
+
+  const handleJoinRoom = useCallback(() => {
+    if (!joinCode.trim()) return;
+    connect(() => {
+      joinRoom(userName || 'Guest', joinCode.trim().toUpperCase());
+    }, tierToken);
+  }, [connect, joinRoom, userName, joinCode, tierToken]);
+
+  const handleStart = useCallback(() => {
+    onRoomReady();
+  }, [onRoomReady]);
+
+  const isConnecting = status === 'connecting';
+
+  // Initial choice: Create or Join
+  if (view === 'choose' && !roomCode) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-        className="space-y-6"
-      >
-        {/* Mode label */}
-        <p className="text-center text-xs text-white/35 uppercase tracking-[0.2em] font-semibold">
-          {isGroup ? 'Group  ·  3 – 6 Players' : 'Duo  ·  2 Players'}
-        </p>
-
-        {/* Name input */}
+      <div className="space-y-6 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center mx-auto">
+          <Users size={26} className="text-blue-400" />
+        </div>
         <div>
-          <label className="block text-xs text-white/40 uppercase tracking-widest mb-2 font-semibold">
-            What's your name?
-          </label>
-          <input
-            type="text"
-            value={playerName}
-            onChange={e => setPlayerName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && playerName.trim() && setLobbyMode('choose')}
-            placeholder="Enter your first name"
-            maxLength={20}
-            autoFocus
-            className={inputCls}
-          />
+          <h2 className="text-lg font-bold text-white">
+            {isGroup ? 'Group Room' : 'Duo Room'}
+          </h2>
+          <p className="text-sm text-white/40 mt-1">
+            {isGroup
+              ? 'Create or join a room for 3-6 players'
+              : 'Create or join a room for 2 players'}
+          </p>
         </div>
 
-        {/* Buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <GradientBtn
-            disabled={!playerName.trim()}
-            onClick={() => {
-              connection.connect(() => connection.createRoom(playerName.trim(), isGroup ? 'group' : 'duo'));
-              setLobbyMode('host');
+        <div className="space-y-3">
+          <button
+            onClick={handleCreateRoom}
+            disabled={isConnecting}
+            className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.97] disabled:opacity-50"
+            style={{
+              minHeight: 44,
+              background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
             }}
           >
-            Create Room
-          </GradientBtn>
+            {isConnecting ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 size={18} className="animate-spin" /> Connecting...
+              </span>
+            ) : (
+              'Create Room'
+            )}
+          </button>
 
           <button
-            disabled={!playerName.trim()}
-            onClick={() => playerName.trim() && setLobbyMode('join-input')}
-            className="
-              py-4 rounded-2xl font-bold text-base
-              border border-white/15 text-white/75
-              hover:border-violet-400/50 hover:text-white hover:bg-white/[0.04]
-              disabled:opacity-30 disabled:cursor-not-allowed
-              transition-all duration-200 active:scale-[0.97]
-            "
+            onClick={() => setView('guest')}
+            className="w-full py-3.5 rounded-2xl font-bold text-base text-white/70 bg-white/[0.06] border border-white/10 hover:bg-white/[0.10] transition-all active:scale-[0.97]"
+            style={{ minHeight: 44 }}
           >
             Join Room
           </button>
         </div>
-      </motion.div>
+      </div>
     );
   }
 
-  // ── Phase 2: Join code entry ───────────────────────────────────
-  if (lobbyMode === 'join-input') {
+  // Guest join view (before connected)
+  if (view === 'guest' && !roomCode) {
     return (
-      <motion.div
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-        className="space-y-5"
-      >
-        <button
-          onClick={() => setLobbyMode(null)}
-          className="flex items-center gap-1.5 min-h-[44px] py-3 text-white/35 hover:text-white/65 text-sm transition-colors"
-        >
-          <ArrowLeft size={14} /> Back
-        </button>
-
-        <div>
-          <label className="block text-xs text-white/40 uppercase tracking-widest mb-2 font-semibold">
-            Room Code
-          </label>
-          <input
-            type="text"
-            value={joinCode}
-            onChange={e => setJoinCode(e.target.value.replace(/[^0-9A-Za-z]/g, '').toUpperCase())}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && joinCode.length >= 6) {
-                connection.connect(() => connection.joinRoom(playerName.trim(), joinCode.trim()));
-                setLobbyMode('join');
-              }
-            }}
-            placeholder="ABC123"
-            maxLength={6}
-            autoFocus
-            className={`${inputCls} text-center text-3xl tracking-[0.3em] font-black`}
-          />
+      <div className="space-y-6 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center mx-auto">
+          <LogIn size={26} className="text-blue-400" />
         </div>
-
-        <GradientBtn
-          disabled={joinCode.length < 6}
-          onClick={() => {
-            connection.connect(() => connection.joinRoom(playerName.trim(), joinCode.trim()));
-            setLobbyMode('join');
-          }}
-        >
-          Join Room
-        </GradientBtn>
-      </motion.div>
-    );
-  }
-
-  // ── Phase 3: In-room lobby (code shown, player list, CTA) ──────
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 240, damping: 22 }}
-      className="space-y-5"
-    >
-      {/* Room identity block */}
-      {connection.roomCode && (
-        <div className="text-center">
-          <p className="text-white/85 font-bold text-lg tracking-tight">{roomName}</p>
-
-          <div className="flex items-center justify-center gap-3 mt-2">
-            {/* Room code */}
-            <span className="text-3xl font-black tracking-[0.25em] text-gradient-violet">
-              {connection.roomCode}
-            </span>
-
-            {/* Copy button */}
-            <button
-              onClick={handleCopy}
-              className="
-                flex items-center gap-1.5 px-3 py-3 min-h-[44px] rounded-xl
-                glass text-white/50 hover:text-white
-                text-xs font-semibold transition-all duration-200
-              "
-            >
-              {copied
-                ? <><Check size={12} className="text-emerald-400" /> Copied</>
-                : <><Copy size={12} /> Copy</>
-              }
-            </button>
-          </div>
-
-          <p className="text-xs text-white/25 mt-1.5">
-            Share this code with {isGroup ? 'your group' : 'your friend'}
+        <div>
+          <h2 className="text-lg font-bold text-white">Join a Room</h2>
+          <p className="text-sm text-white/40 mt-1">
+            Enter the room code shared by the host
           </p>
         </div>
-      )}
 
-      {/* Divider */}
-      <div className="border-t border-white/[0.07]" />
+        <input
+          type="text"
+          value={joinCode}
+          onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 6))}
+          placeholder="ROOM CODE"
+          maxLength={6}
+          className="w-full text-center text-2xl font-mono font-black tracking-[0.3em] py-3 px-4 rounded-2xl bg-white/[0.04] border border-white/10 text-white placeholder-white/20 focus:outline-none focus:border-blue-500/50"
+          style={{ minHeight: 44 }}
+          autoFocus
+        />
 
-      {/* Status row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            connection.status === 'connected'  ? 'bg-emerald-400' :
-            connection.status === 'connecting' ? 'bg-amber-400 animate-pulse' :
-                                                 'bg-white/20'
-          }`} />
-          <span className="text-xs text-white/35 capitalize">{connection.status}</span>
+        {/* GAP-08: Room expired / not found error message */}
+        {isRoomExpiredError && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
+            This room may have expired &mdash; ask the host to create a new one.
+          </div>
+        )}
+        {error && !isRoomExpiredError && (
+          <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-300 text-center">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setView('choose'); setJoinCode(''); }}
+            className="flex-1 py-3.5 rounded-2xl font-bold text-base text-white/50 bg-white/[0.04] border border-white/10 transition-all active:scale-[0.97]"
+            style={{ minHeight: 44 }}
+          >
+            Back
+          </button>
+          <button
+            onClick={handleJoinRoom}
+            disabled={joinCode.length < 4 || isConnecting}
+            className="flex-1 py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.97] disabled:opacity-40"
+            style={{
+              minHeight: 44,
+              background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
+            }}
+          >
+            {isConnecting ? (
+              <span className="flex items-center justify-center gap-2">
+                <Loader2 size={18} className="animate-spin" /> Joining...
+              </span>
+            ) : (
+              'Join'
+            )}
+          </button>
         </div>
-        <span className="text-xs text-white/25 font-medium">
-          {connection.players.length} / {isGroup ? 6 : 2} joined
-        </span>
       </div>
+    );
+  }
 
-      {/* Error */}
-      {connection.error && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 text-sm text-red-300">
-          {connection.error}
-        </div>
-      )}
+  // Connected — show room code + player list + start button (host)
+  return (
+    <div className="space-y-6">
+      {roomCode && <RoomCodeDisplay code={roomCode} />}
 
       {/* Player list */}
-      <div className="space-y-2">
-        {connection.players.map((p, i) => (
-          <motion.div
-            key={p.id}
-            initial={{ opacity: 0, x: -16 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.07, type: 'spring', stiffness: 300, damping: 24 }}
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl glass"
-          >
-            {/* Gradient avatar */}
-            <div className={`
-              w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center
-              bg-gradient-to-br ${getAvatarGradient(p.name)}
-              text-sm font-bold text-white shadow-sm
-            `}>
-              {p.name?.[0]?.toUpperCase() || '?'}
-            </div>
-
-            {/* Name */}
-            <span className="flex-1 font-semibold text-white/90 text-sm truncate">{p.name}</span>
-
-            {/* Badges */}
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              {i === 0 && (
-                <span className="
-                  flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold
-                  bg-amber-400/12 border border-amber-400/20 text-amber-300
-                ">
-                  <Crown size={9} /> Host
-                </span>
-              )}
-              <span className={`
-                px-2 py-0.5 rounded-full text-xs font-semibold
-                ${p.ready
-                  ? 'bg-emerald-400/12 border border-emerald-400/20 text-emerald-300'
-                  : 'bg-white/[0.05] border border-white/10 text-white/30'
-                }
-              `}>
-                {p.ready ? 'Ready' : 'Joined'}
-              </span>
-            </div>
-          </motion.div>
-        ))}
-
-        {/* Empty slots */}
-        {Array.from({ length: Math.max(0, minPlayers - connection.players.length) }).map((_, i) => (
-          <motion.div
-            key={`empty-${i}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: (connection.players.length + i) * 0.07 }}
-            className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-dashed border-white/[0.09]"
-          >
-            <div className="w-9 h-9 rounded-full border border-dashed border-white/12 flex items-center justify-center flex-shrink-0">
-              <Users size={13} className="text-white/18" />
-            </div>
-            <span className="text-sm text-white/22 italic">Waiting for player…</span>
-          </motion.div>
-        ))}
+      <div>
+        <p className="text-xs text-white/40 uppercase tracking-wider mb-3">
+          Players ({players.length}{isGroup ? '/6' : '/2'})
+        </p>
+        <div className="space-y-2">
+          <AnimatePresence>
+            {players.map((p) => (
+              <PlayerChip key={p.id} player={p} isYou={p.id === playerId} />
+            ))}
+          </AnimatePresence>
+        </div>
+        {players.length < minPlayers && (
+          <p className="text-xs text-white/25 mt-3 text-center">
+            Waiting for {minPlayers - players.length} more player{minPlayers - players.length > 1 ? 's' : ''}...
+          </p>
+        )}
       </div>
 
-      {/* Ambient tip */}
-      {connection.roomCode && (
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tipIndex}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.35 }}
-            className="flex items-start gap-2.5 px-4 py-3 rounded-2xl bg-violet-500/[0.07] border border-violet-500/12"
-          >
-            <Zap size={12} className="text-violet-400 mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-white/45 leading-relaxed">{TIPS[tipIndex]}</p>
-          </motion.div>
-        </AnimatePresence>
+      {/* Start button (host only) */}
+      {isHost && (
+        <button
+          onClick={handleStart}
+          disabled={!canStart}
+          className="w-full py-3.5 rounded-2xl font-bold text-base text-white transition-all active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          style={{
+            minHeight: 44,
+            background: canStart
+              ? 'linear-gradient(135deg, #0a84ff, #5e5ce6)'
+              : 'rgba(255,255,255,0.06)',
+          }}
+        >
+          <Play size={18} />
+          Start {isGroup ? 'Group' : 'Duo'} Match
+        </button>
       )}
 
-      {/* CTA */}
-      {connection.isHost ? (
-        <GradientBtn disabled={!canStart} onClick={onRoomReady}>
-          {canStart
-            ? 'Everyone Upload Photos →'
-            : `Waiting for ${minPlayers - connection.players.length} more player${minPlayers - connection.players.length !== 1 ? 's' : ''}…`
-          }
-        </GradientBtn>
-      ) : (
-        <div className="flex flex-col items-center gap-2 py-2">
-          <div className="flex items-center gap-1.5">
-            {[0, 1, 2].map(i => (
+      {/* Guest waiting message */}
+      {!isHost && (
+        <div className="text-center py-3">
+          <div className="flex items-center justify-center gap-1.5 mb-2">
+            {[0, 1, 2].map((i) => (
               <span
                 key={i}
-                className="w-1.5 h-1.5 rounded-full bg-violet-400/60 dot-bounce"
+                className="w-1.5 h-1.5 rounded-full bg-blue-400/70 dot-bounce"
                 style={{ animationDelay: `${i * 0.16}s` }}
               />
             ))}
           </div>
-          <p className="text-sm text-white/35">Waiting for the host to start…</p>
+          <p className="text-sm text-white/40">Waiting for host to start...</p>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

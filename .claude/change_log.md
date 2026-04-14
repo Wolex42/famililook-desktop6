@@ -5,6 +5,27 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-14 — Workstream B: FamiliMatch Landing Copy + Trust Signals (CR-MATCH-COPY-01)
+
+### CR-MATCH-COPY-01 — Landing page copy refresh
+**Description:** CEO-approved copy changes (Workstream B-C3 Option A + B-C4 custom) to address trust gap and technical landing page language.
+
+**Changes:**
+1. **Badge copy** — "AI Facial Compatibility" → "Face Chemistry" (`LandingPage.jsx`)
+2. **H1 copy** — "How Compatible / Are You?" → "How Alike Are You, / Really?" (`LandingPage.jsx`)
+3. **Sub-head copy** — "Our AI analyses 8 facial features to discover your facial compatibility in seconds." → "Compare 8 facial features with anyone — friends, couples, siblings. Results in 10 seconds." (`LandingPage.jsx`)
+4. **CTA text** — "Try It Now — Free" → "Compare Now — Free" (`LandingPage.jsx`)
+5. **Trust signals added** — new trust strip below CTA: "Your photos are gone 10 seconds after your score appears. Never stored, never seen by anyone. No account." (`LandingPage.jsx`)
+
+**Tests updated:** `LandingPage.test.jsx` — CTA button text assertion updated.
+
+**Cross-repo impact:** None. desktop6 only.
+**Risk Tier:** P2 (copy + visual, no structural changes)
+**Status:** COMPLETE — 51 tests PASS, build PASS
+**Quality gate:** PASSED
+
+---
+
 ## 2026-04-13 — Phase A3: Challenge a Friend mechanic (CR-MATCH-A3)
 
 **Risk Tier**: P1 (growth feature — viral loop)

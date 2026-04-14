@@ -1,86 +1,117 @@
-import { Camera, Upload, X } from 'lucide-react';
-import { usePhotoCapture } from '../hooks/usePhotoCapture';
+import { useState, useRef, useCallback } from 'react';
+import { Camera, RefreshCw } from 'lucide-react';
 
-export default function PhotoUpload({ label, onPhotoReady, disabled }) {
-  const { photo, error, loading, inputRef, handleInputChange, handleDrop, openFilePicker, clearPhoto } =
-    usePhotoCapture();
+/**
+ * PhotoUpload — drag-and-drop / click-to-upload photo zone for FamiliMatch.
+ *
+ * Props:
+ *   label:        string                     — label shown above the drop zone (e.g. "Photo A")
+ *   onPhotoReady: (dataUrl: string) => void  — called with base64 data URL when a photo is selected
+ */
+export default function PhotoUpload({ label, onPhotoReady }) {
+  const [preview, setPreview] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const inputRef = useRef(null);
 
-  const handleReady = async (e) => {
+  const processFile = useCallback((file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const dataUrl = e.target.result;
+      setPreview(dataUrl);
+      onPhotoReady(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  }, [onPhotoReady]);
+
+  const handleChange = useCallback((e) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    // Let the hook process it, then notify parent
-    const fakeEvent = { target: { files: [file] } };
-    handleInputChange(fakeEvent);
-  };
+    if (file) processFile(file);
+  }, [processFile]);
 
-  // When photo changes, notify parent
-  const prevPhoto = photo;
+  const handleDrop = useCallback((e) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) processFile(file);
+  }, [processFile]);
 
-  return (
-    <div className="flex flex-col items-center gap-3">
-      {label && <p className="text-sm text-gray-400 font-medium">{label}</p>}
+  const handleDragOver = useCallback((e) => {
+    e.preventDefault();
+    setDragging(true);
+  }, []);
 
-      {photo ? (
-        <div className="relative">
-          <img
-            src={photo}
-            alt="Uploaded"
-            className="w-40 h-40 rounded-2xl object-cover border-2 border-primary/40"
-          />
-          {!disabled && (
-            <button
-              onClick={() => {
-                clearPhoto();
-                onPhotoReady?.(null);
-              }}
-              className="absolute -top-4 -right-4 bg-red-500 rounded-full p-2 min-h-[44px] min-w-[44px] flex items-center justify-center hover:bg-red-600"
-            >
-              <X size={18} />
-            </button>
-          )}
-        </div>
-      ) : (
+  const handleDragLeave = useCallback(() => {
+    setDragging(false);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    setPreview(null);
+    if (inputRef.current) inputRef.current.value = '';
+  }, []);
+
+  // Preview state — show uploaded image with change option
+  if (preview) {
+    return (
+      <div className="flex flex-col items-center gap-2">
+        {label && <span className="text-xs font-semibold text-gray-400">{label}</span>}
         <div
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            handleDrop(e);
-          }}
-          onClick={openFilePicker}
-          className={`w-40 h-40 rounded-2xl border-2 border-dashed border-gray-600
-            flex flex-col items-center justify-center gap-2 cursor-pointer
-            hover:border-primary/60 hover:bg-surface-light/50 transition-all
-            ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
+          className="relative w-36 h-36 rounded-2xl overflow-hidden"
+          style={{ border: '2px solid rgba(94,92,230,0.3)' }}
         >
-          {loading ? (
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary border-t-transparent" />
-          ) : (
-            <>
-              <Upload size={24} className="text-gray-500" />
-              <span className="text-xs text-gray-500">Drop or tap</span>
-            </>
-          )}
+          <img
+            src={preview}
+            alt={label || 'Uploaded photo'}
+            className="w-full h-full object-cover"
+          />
         </div>
-      )}
+        <button
+          onClick={handleReset}
+          className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors px-3 py-2"
+          style={{ minHeight: '44px', minWidth: '44px' }}
+        >
+          <RefreshCw size={12} />
+          Change
+        </button>
+      </div>
+    );
+  }
+
+  // Upload state — dashed drop zone
+  return (
+    <div className="flex flex-col items-center gap-2">
+      {label && <span className="text-xs font-semibold text-gray-400">{label}</span>}
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        className={`
+          w-36 h-36 rounded-2xl flex flex-col items-center justify-center gap-2
+          transition-all duration-200 cursor-pointer
+          ${dragging ? 'border-brand-blue scale-[1.03]' : 'border-white/15 hover:border-white/30'}
+        `}
+        style={{
+          border: `2px dashed ${dragging ? '#0a84ff' : 'rgba(255,255,255,0.15)'}`,
+          background: dragging ? 'rgba(10,132,255,0.08)' : 'rgba(255,255,255,0.03)',
+          minHeight: '44px',
+          minWidth: '44px',
+        }}
+      >
+        <Camera size={24} className="text-gray-500" />
+        <span className="text-xs text-gray-500">
+          {dragging ? 'Drop here' : 'Tap to upload'}
+        </span>
+      </button>
 
       <input
         ref={inputRef}
         type="file"
-        accept="image/jpeg,image/png,image/webp"
+        accept="image/*"
+        onChange={handleChange}
         className="hidden"
-        onChange={(e) => {
-          handleInputChange(e);
-          // Notify parent after a tick so state updates
-          const file = e.target.files?.[0];
-          if (file) {
-            import('../utils/photoUtils').then(({ fileToBase64 }) =>
-              fileToBase64(file).then((dataUrl) => onPhotoReady?.(dataUrl))
-            );
-          }
-        }}
-        disabled={disabled}
       />
-
-      {error && <p className="text-xs text-red-400">{error}</p>}
     </div>
   );
 }

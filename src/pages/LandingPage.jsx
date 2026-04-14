@@ -262,7 +262,7 @@ export default function LandingPage() {
           className="flex items-center gap-2 mb-6 px-4 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/10"
         >
           <Sparkles size={13} className="text-violet-400" />
-          <span className="text-xs text-violet-300 font-medium tracking-wide">AI Facial Compatibility</span>
+          <span className="text-xs text-violet-300 font-medium tracking-wide">Face Chemistry</span>
         </motion.div>
 
         <motion.h1
@@ -271,9 +271,9 @@ export default function LandingPage() {
           transition={{ duration: 0.55, delay: 0.08 }}
           className="text-4xl md:text-5xl font-extrabold leading-tight mb-4"
         >
-          <span className="text-gradient-violet">How Compatible</span>
+          <span className="text-gradient-violet">How Alike Are You,</span>
           <br />
-          <span className="text-white">Are You?</span>
+          <span className="text-white">Really?</span>
         </motion.h1>
 
         <motion.p
@@ -282,7 +282,7 @@ export default function LandingPage() {
           transition={{ delay: 0.2, duration: 0.5 }}
           className="text-gray-400 text-base md:text-lg mb-8 max-w-sm leading-relaxed"
         >
-          Our AI analyses 8 facial features to discover your facial compatibility in seconds.
+          Compare 8 facial features with anyone — friends, couples, siblings. Results in 10 seconds.
         </motion.p>
 
         {/* Illustration cards */}
@@ -326,8 +326,20 @@ export default function LandingPage() {
           }}
         >
           <Zap size={20} />
-          Try It Now — Free
+          Compare Now — Free
         </motion.button>
+
+        {/* Trust signals */}
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4, duration: 0.5 }}
+          className="text-gray-400 text-sm text-center mt-4 max-w-xs leading-relaxed"
+        >
+          Your photos are gone 10 seconds after your score appears.
+          <br />
+          <span className="text-gray-500">Never stored, never seen by anyone. No account.</span>
+        </motion.p>
 
       </div>
 
