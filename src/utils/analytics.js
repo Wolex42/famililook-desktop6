@@ -27,6 +27,7 @@ class Analytics {
     this.events = [];
     this.region = this.captureRegion();
     this.isReturning = this.detectReturningVisitor();
+    this.utm = this.captureUtmParams();
     // FM-018: session_start is deferred until consent is confirmed.
     // fireSessionStart() must be called explicitly after consent is granted.
     this._sessionStartFired = false;
@@ -68,6 +69,18 @@ class Analytics {
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || null,
       };
     } catch { return {}; } // eslint-disable-line no-empty
+  }
+
+  captureUtmParams() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const utm = {};
+      for (const key of ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'ref']) {
+        const val = params.get(key);
+        if (val) utm[key] = val;
+      }
+      return Object.keys(utm).length > 0 ? utm : null;
+    } catch { return null; } // eslint-disable-line no-empty
   }
 
   generateSessionId() {
@@ -150,6 +163,7 @@ class Analytics {
       sessionTime: Date.now() - this.sessionStart,
       url: window.location.pathname,
       region: this.region,
+      utm: this.utm,
       ...data,
     };
 

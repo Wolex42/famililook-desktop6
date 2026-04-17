@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /app
+Disallow: /assets/
+
+User-agent: CCBot
+Disallow: /
+
+Sitemap: https://familimatch.com/sitemap.xml

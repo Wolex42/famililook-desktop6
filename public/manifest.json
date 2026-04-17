@@ -1,0 +1,13 @@
+{
+  "name": "FamiliMatch",
+  "short_name": "FamiliMatch",
+  "description": "How compatible are your faces? Compare 8 facial features — free and instant.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0F1A",
+  "theme_color": "#0a84ff",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

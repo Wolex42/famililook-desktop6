@@ -5,6 +5,18 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-17 — SEO, PWA, and social discoverability fixes (CR-SEO-D6)
+
+### CR-SEO-D6 — Full SEO/social/PWA pass for FamiliMatch
+**Description:** Added all missing discoverability infrastructure: robots.txt (allows crawlers, points to sitemap), sitemap.xml (4 indexable routes), manifest.json (PWA installability), theme-color + apple-touch-icon in index.html, UTM parameter parsing in analytics (utm_source/medium/campaign/term/content + ref on every event). Generated icon-192.png, icon-512.png, and og-familimatch.png (1200x630 branded social preview) programmatically from brand SVG.
+**Files changed:** `public/robots.txt` (NEW), `public/sitemap.xml` (NEW), `public/manifest.json` (NEW), `public/icon-192.png` (NEW), `public/icon-512.png` (NEW), `public/og-familimatch.png` (NEW), `index.html`, `src/utils/analytics.js`, `scripts/generate-icons.mjs` (NEW)
+**Impact:** Social shares now show branded preview instead of broken image. Search engines can discover and index all public routes. UTM tracking enables attribution from social campaigns.
+**Tests:** 51/51 unit PASS, 14/14 E2E PASS
+**Risk Tier:** P2 (additive, no structural changes)
+**Status:** COMPLETE
+
+---
+
 ## 2026-04-17 — Fix E2E test-copy drift from Workstream B (CR-E2E-COPY-D6)
 
 ### CR-E2E-COPY-D6 — Update E2E tests to match current landing page copy
