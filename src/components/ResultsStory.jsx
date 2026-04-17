@@ -20,8 +20,16 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, RotateCcw, Home, Check, X } from 'lucide-react';
+import { SharpIcon, featureIconMap } from '@famililook/shared/icons';
 
 const TOTAL_SLIDES = 5;
+
+// Resolve feature-specific icon from shared package (SharpIcon = competitive adult register)
+function FeatureIconResolved({ feature, size = 24, className }) {
+  const Icon = featureIconMap[feature];
+  if (!Icon) return null;
+  return <SharpIcon><Icon size={size} className={className} /></SharpIcon>;
+}
 
 function useAnimatedNumber(target, duration = 1800, delay = 600) {
   const [value, setValue] = useState(0);
@@ -156,8 +164,8 @@ function StrongestMatchSlide({ feature, nameA, nameB }) {
         transition={{ duration: 0.4 }}
         className="text-center space-y-4"
       >
-        <div className="w-14 h-14 rounded-2xl bg-green-500/15 border border-green-500/20 flex items-center justify-center mx-auto">
-          <Check size={28} className="text-green-400" />
+        <div className="w-14 h-14 rounded-2xl bg-green-500/15 border border-green-500/20 flex items-center justify-center mx-auto text-green-400">
+          <FeatureIconResolved feature={feature.feature} size={28} />
         </div>
         <div>
           <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Strongest Match</p>
@@ -201,8 +209,8 @@ function BiggestContrastSlide({ feature, nameA, nameB }) {
         transition={{ duration: 0.4 }}
         className="text-center space-y-4"
       >
-        <div className="w-14 h-14 rounded-2xl bg-orange-500/15 border border-orange-500/20 flex items-center justify-center mx-auto">
-          <X size={28} className="text-orange-400" />
+        <div className="w-14 h-14 rounded-2xl bg-orange-500/15 border border-orange-500/20 flex items-center justify-center mx-auto text-orange-400">
+          <FeatureIconResolved feature={feature.feature} size={28} />
         </div>
         <div>
           <p className="text-xs text-white/40 uppercase tracking-wider mb-1">Biggest Contrast</p>
@@ -257,7 +265,10 @@ function FeatureBreakdownSlide({ featureComparisons, nameA, nameB }) {
                 fc.match ? 'bg-green-500/5' : 'bg-white/[0.02]'
               }`}
             >
-              <span className="text-white/70 capitalize">{fc.feature.replace('_', ' ')}</span>
+              <span className="text-white/70 capitalize flex items-center gap-1.5">
+                <FeatureIconResolved feature={fc.feature} size={14} />
+                {fc.feature.replace('_', ' ')}
+              </span>
               <span className="text-white/50 text-center truncate">{fc.label_a}</span>
               <span className="text-white/50 text-center truncate">{fc.label_b}</span>
               <span className="text-center">

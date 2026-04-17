@@ -5,6 +5,19 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-17 — Sprint X Integration: @famililook/shared@0.4.0 + Icon System (CR-ICON-INT-D6)
+
+### CR-ICON-INT-D6 — Wire shared icon system into FamiliMatch
+**Description:** First-time installation of `@famililook/shared@^0.4.0` in desktop6. Created `.npmrc` (install-links=true) to prevent local symlink issues on Vercel. Wired `SharpIcon` wrapper (competitive adult register) and `featureIconMap` into `ResultsStory.jsx` — slides 2, 3, and 4 now render feature-specific icons instead of generic Check/X. Feature breakdown table rows show 14px icons alongside text labels.
+**Context:** Sprint X Phase X3 icon system built in famililook-shared. This is the consumer integration sprint. Desktop6 was previously unconnected to the shared infrastructure.
+**Files changed:** `.npmrc` (NEW), `package.json`, `package-lock.json`, `src/components/ResultsStory.jsx`
+**Note:** FaceShapeIcon brow hint lines collapse at 14px in breakdown table — face silhouette alone carries meaning at that size. Text label alongside provides disambiguation.
+**Tests:** 51/51 unit PASS, 11/14 E2E PASS (3 pre-existing LandingPage failures unrelated)
+**Risk Tier:** P1 (shared package integration)
+**Status:** COMPLETE
+
+---
+
 ## 2026-04-14 — Workstream B: FamiliMatch Landing Copy + Trust Signals (CR-MATCH-COPY-01)
 
 ### CR-MATCH-COPY-01 — Landing page copy refresh
