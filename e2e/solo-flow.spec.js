@@ -6,9 +6,9 @@ import { test, expect } from '@playwright/test';
 test.describe('Landing Page', () => {
   test('renders hero and mode cards', async ({ page }) => {
     await page.goto('/');
-    await expect(page.getByText('How Compatible')).toBeVisible();
-    await expect(page.getByText('Are You?')).toBeVisible();
-    await expect(page.getByText('Try It Now — Free')).toBeVisible();
+    await expect(page.getByText('How Alike Are You,')).toBeVisible();
+    await expect(page.getByText('Really?')).toBeVisible();
+    await expect(page.getByText('Compare Now — Free')).toBeVisible();
   });
 
   test('shows three mode cards (Solo, Duo, Group)', async ({ page }) => {
@@ -28,11 +28,11 @@ test.describe('Landing Page', () => {
   test('clicking locked mode shows upgrade modal', async ({ page }) => {
     await page.goto('/');
     await page.getByText('Duo').click();
-    await expect(page.getByText('requires Plus')).toBeVisible();
+    await expect(page.getByText('Unlock Duo Mode')).toBeVisible();
     await expect(page.getByText('Upgrade to Plus')).toBeVisible();
     // Dismiss
     await page.getByText('Maybe later').click();
-    await expect(page.getByText('requires Plus')).not.toBeVisible();
+    await expect(page.getByText('Unlock Duo Mode')).not.toBeVisible();
   });
 
   test('privacy and terms links exist', async ({ page }) => {
@@ -45,7 +45,7 @@ test.describe('Landing Page', () => {
 test.describe('Solo Page — Navigation', () => {
   test('CTA shows consent gate before solo navigation', async ({ page }) => {
     await page.goto('/');
-    await page.getByText('Try It Now — Free').click();
+    await page.getByText('Compare Now — Free').click();
     // Should show consent modal (biometric consent required before navigation)
     await expect(page.getByText('I Agree')).toBeVisible({ timeout: 3000 });
   });

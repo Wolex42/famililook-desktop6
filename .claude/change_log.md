@@ -5,6 +5,16 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-17 — Fix E2E test-copy drift from Workstream B (CR-E2E-COPY-D6)
+
+### CR-E2E-COPY-D6 — Update E2E tests to match current landing page copy
+**Description:** CR-MATCH-COPY-01 (2026-04-14) changed 3 pieces of landing page copy but E2E tests were not updated. Fixed 3 failing tests: hero text ("How Compatible" → "How Alike Are You,"), CTA ("Try It Now — Free" → "Compare Now — Free"), upgrade modal ("requires Plus" → "Unlock Duo Mode").
+**Files changed:** `e2e/solo-flow.spec.js`
+**Tests:** 51/51 unit PASS, **14/14 E2E PASS** (was 11/14)
+**Status:** COMPLETE
+
+---
+
 ## 2026-04-17 — Sprint X Integration: @famililook/shared@0.4.0 + Icon System (CR-ICON-INT-D6)
 
 ### CR-ICON-INT-D6 — Wire shared icon system into FamiliMatch
