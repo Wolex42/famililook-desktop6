@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { Camera, RefreshCw } from 'lucide-react';
+import { usePhotoQuality, PhotoQualityRing, PHOTO_QUALITY_COPY } from '@famililook/shared/photo';
 
 /**
  * PhotoUpload — drag-and-drop / click-to-upload photo zone for FamiliMatch.
@@ -10,11 +11,17 @@ import { Camera, RefreshCw } from 'lucide-react';
  */
 export default function PhotoUpload({ label, onPhotoReady }) {
   const [preview, setPreview] = useState(null);
+  const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef(null);
 
+  // X2 — photo quality check (null adapter: canvas checks only, no face detection)
+  const { score, grade, suggestion, loading } = usePhotoQuality(file, { faceDetector: null });
+  const suggestionText = suggestion ? PHOTO_QUALITY_COPY[suggestion] : null;
+
   const processFile = useCallback((file) => {
     if (!file || !file.type.startsWith('image/')) return;
+    setFile(file);
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
@@ -47,6 +54,7 @@ export default function PhotoUpload({ label, onPhotoReady }) {
 
   const handleReset = useCallback(() => {
     setPreview(null);
+    setFile(null);
     if (inputRef.current) inputRef.current.value = '';
   }, []);
 
@@ -55,6 +63,7 @@ export default function PhotoUpload({ label, onPhotoReady }) {
     return (
       <div className="flex flex-col items-center gap-2">
         {label && <span className="text-xs font-semibold text-gray-400">{label}</span>}
+        <PhotoQualityRing score={score} grade={grade} suggestion={suggestionText} loading={loading}>
         <div
           className="relative w-36 h-36 rounded-2xl overflow-hidden"
           style={{ border: '2px solid rgba(94,92,230,0.3)' }}
@@ -65,6 +74,7 @@ export default function PhotoUpload({ label, onPhotoReady }) {
             className="w-full h-full object-cover"
           />
         </div>
+        </PhotoQualityRing>
         <button
           onClick={handleReset}
           className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors px-3 py-2"

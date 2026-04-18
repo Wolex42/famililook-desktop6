@@ -12,6 +12,7 @@ import { useMatch } from '../state/MatchContext';
 import ConsentModal from '../components/ConsentModal';
 import { analytics } from '../utils/analytics';
 import { API_BASE, API_KEY } from '../utils/config';
+import { useCurrency } from '@famililook/shared/locale';
 
 const SUBSCRIBE_KEY = 'fl:email-captured';
 
@@ -125,6 +126,7 @@ export default function LandingPage() {
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeEmail, setUpgradeEmail] = useState('');
   const { history, clearHistory } = useMatchHistory();
+  const { format } = useCurrency();
 
   // Signed tier token from URL param — used for backend WebSocket auth
   const tierToken = useMemo(() => searchParams.get('token') || '', [searchParams]);
@@ -487,7 +489,7 @@ export default function LandingPage() {
               Compare face-to-face with friends in real time.
             </p>
             <div className="text-2xl font-black text-white mb-1">
-              £3.99<span className="text-sm font-normal text-gray-500">/month</span>
+              {format(3.99)}<span className="text-sm font-normal text-gray-500">/month</span>
             </div>
             <p className="text-xs text-gray-600 mb-4">Cancel anytime. Covers all FamiliLook products.</p>
             <input

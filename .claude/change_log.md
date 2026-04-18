@@ -5,6 +5,48 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-18 — Sprint X Consumer Integration: X2 Photo Quality + X4 CelebrationBurst (CR-X2-X4-D6)
+
+**Risk Tier:** P1 (shared package consumer integration)
+**Approved by:** CEO (X4 ResultsStory: CEO waiver granted — patch count 4, complexity reduction not symptom patch)
+**Executed by:** FE Lead agent
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-18 | desktop6 | Code | X2: Wired `usePhotoQuality` + `PhotoQualityRing` into PhotoUpload.jsx with null adapter (canvas-only checks: blur, lighting, resolution, compression) | CR-X2-D6-01 | P1 | CLOSED |
+| 2026-04-18 | desktop6 | Code | X2: Added `file` state to retain File object for quality analysis | CR-X2-D6-02 | P2 | CLOSED |
+| 2026-04-18 | desktop6 | Code | X4: Replaced 12 lines of inline canvas-confetti in ResultsStory.jsx PercentageSlide with `<CelebrationBurst>` from shared | CR-X4-D6-01 | P1 | CLOSED |
+| 2026-04-18 | desktop6 | Config | Added `vi.mock('@famililook/shared/photo')` + `vi.mock('@famililook/shared/rewards')` to setupTests.js — Node ESM .jsx compat | CR-X2-D6-03 | P2 | CLOSED |
+
+**X2 behaviour:** PhotoUpload now shows green ring on excellent quality (score 80+), text-only suggestion for amber/red. Never blocks upload. Null adapter: face checks skipped, canvas checks still run.
+**X4 behaviour:** CelebrationBurst fires 3-tier confetti (40/80/150 particles at 70/80/90%) with chemistry-specific palettes + haptic feedback. Replaces hardcoded 2-tier inline confetti (40/80 at 75/90%).
+**X4 governance:** ResultsStory.jsx at 4 patches in 30 days. CEO waiver granted 2026-04-18 — CelebrationBurst swap is complexity reduction (removes 12 lines, adds 1 shared component), not a symptom patch.
+**Tests:** 51/51 unit PASS. Quality floor held.
+**Deferred:** ProgressReveal (SoloPage + RoomPage) — requires analysis flow refactoring, deferred to dedicated sprint.
+
+---
+
+## 2026-04-18 — X6 Currency: Replace hardcoded £3.99 with useCurrency (CR-X6-CURRENCY-D6)
+
+**Risk Tier:** P2 (locale-aware formatting, no structural change)
+**Approved by:** CEO
+**Executed by:** FE Lead agent
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-18 | desktop6 | Code | Added `import { useCurrency } from '@famililook/shared/locale'` to LandingPage.jsx | CR-X6-D6-01 | P2 | CLOSED |
+| 2026-04-18 | desktop6 | Code | Added `const { format } = useCurrency()` hook call in LandingPage component | CR-X6-D6-02 | P2 | CLOSED |
+| 2026-04-18 | desktop6 | Code | Replaced hardcoded `£3.99` with `{format(3.99)}` in upgrade modal (line 492) | CR-X6-D6-03 | P2 | CLOSED |
+
+**Behaviour change:** Upgrade modal price now auto-detects user locale. UK users see £3.99, US users see $3.99, EU users see 3,99 €, CA users see CA$3.99. Detection priority: AppStorage override > navigator.language > USD fallback.
+**Tests:** 51/51 unit PASS. Quality floor held.
+**Cross-repo impact:** None. Consuming shared package, no changes to shared package.
+
+### X6 Currency — desktop2 CurrencyContext swap: DEFERRED
+**Rationale:** Shared `useCurrency` provides locale-aware formatting only. Desktop2's `CurrencyContext` provides live rate conversion from GBP pence via backend `/currency/rates` endpoint, supports 8 countries, and has 7 consumers. Migration requires extending the shared locale module to support rate conversion — a separate design task, not a consumer integration. Deferred to a future sprint.
+
+---
+
 ## 2026-04-18 — Fix 413 upload failure — compress photos before upload (CR-UPLOAD-D6)
 
 ### CR-UPLOAD-D6 — Wire @famililook/shared/upload into matchClient.js

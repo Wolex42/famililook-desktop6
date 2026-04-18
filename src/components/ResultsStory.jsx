@@ -21,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, RotateCcw, Home, Check, X } from 'lucide-react';
 import { SharpIcon, featureIconMap } from '@famililook/shared/icons';
+import { CelebrationBurst } from '@famililook/shared/rewards';
 
 const TOTAL_SLIDES = 5;
 
@@ -86,25 +87,14 @@ function PercentageSlide({ percentage, chemistry_label, chemistry_color, nameA, 
   const [glowActive, setGlowActive] = useState(false);
 
   useEffect(() => {
-    // Trigger glow + confetti after count-up completes (~2.4s = 600ms delay + 1800ms animation)
-    const timer = setTimeout(() => {
-      setGlowActive(true);
-      if (percentage >= 75) {
-        import('canvas-confetti').then(({ default: confetti }) => {
-          const colors = ['#0a84ff', '#5e5ce6', '#ec4899', '#a78bfa', '#fbbf24'];
-          const count = percentage >= 90 ? 80 : 40;
-          confetti({ particleCount: count, spread: 80, origin: { y: 0.3 }, colors, disableForReducedMotion: true });
-          if (percentage >= 90) {
-            setTimeout(() => confetti({ particleCount: 50, spread: 100, origin: { y: 0.4 }, colors, disableForReducedMotion: true }), 1500);
-          }
-        });
-      }
-    }, 2400);
+    // Trigger glow after count-up completes (~2.4s = 600ms delay + 1800ms animation)
+    const timer = setTimeout(() => setGlowActive(true), 2400);
     return () => clearTimeout(timer);
   }, [percentage]);
 
   return (
     <SlideWrapper>
+      <CelebrationBurst score={percentage} threshold={70} chemistryLabel={chemistry_label} active={glowActive} />
       <motion.div
         initial={{ scale: 0.5, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
