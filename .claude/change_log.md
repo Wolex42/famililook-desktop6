@@ -5,6 +5,30 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-18 — Sprint X Phase X5: Swipe Journey System Integration (CR-X5-D6)
+
+**Risk Tier:** P1 (replaces core results presentation — feature-flagged rollback)
+**Approved by:** CEO (ResultsStory.jsx at 5 patches — this IS the redesign per governance)
+**Executed by:** FE Lead agent (Platform Architect audit complete)
+
+| Date | Repo | Type | Description | Ref | Tier | Status |
+|------|------|------|-------------|-----|------|--------|
+| 2026-04-18 | desktop6 | Code | Created ResultsStory.legacy.jsx — renamed copy of original 449-line file for rollback | CR-X5-D6-01 | P1 | CLOSED |
+| 2026-04-18 | desktop6 | Code | Rewrote ResultsStory.jsx as feature-flag wrapper — VITE_USE_SHARED_JOURNEY=true renders SwipeJourney with 8-card componentMap, false renders legacy via React.lazy | CR-X5-D6-02 | P1 | CLOSED |
+| 2026-04-18 | desktop6 | Code | Created 8 componentMap entries: CompatibilityScore, ChemistryLabel, FeatureBreakdown, SharedFeatures, ScienceExplainer, RareStat, ShareCardSlide, DuoUpgrade | CR-X5-D6-03 | P1 | CLOSED |
+| 2026-04-18 | desktop6 | Config | Added `vi.mock('@famililook/shared/journey')` to setupTests.js — Node ESM .jsx compat | CR-X5-D6-04 | P2 | CLOSED |
+
+**Feature flag:** `VITE_USE_SHARED_JOURNEY` — set in Vercel env vars. `true` = shared journey, `false`/absent = legacy 5-slide component.
+**Rollback:** Set flag to `false` in Vercel, redeploy. No code changes needed.
+**Legacy cleanup:** ResultsStory.legacy.jsx deleted only after 2-week stability period with zero regressions. QA Lead tracks window.
+**Consumers:** SoloPage, ResultsPage, ChallengePage — zero changes required (all import ResultsStory which now auto-switches).
+**New cards (3):** ChemistryLabel (identity statement card), ScienceExplainer (128-dim embeddings + 60/40 formula), RareStat (rarity thresholds + StatHighlight from shared), DuoUpgrade (Plus upsell placeholder).
+**UPL decisions applied:** ScienceExplainer before RareStat (UPL-1), pattern.celebration on verdict (UPL-2), upsell after share (UPL-3).
+**Tests:** 51/51 unit PASS. Quality floor held.
+**Patch count note:** ResultsStory.jsx now at 5 patches in 30 days. This is the REDESIGN — future edits modify componentMap entries individually, not the monolithic file.
+
+---
+
 ## 2026-04-18 — Sprint X Consumer Integration: X2 Photo Quality + X4 CelebrationBurst (CR-X2-X4-D6)
 
 **Risk Tier:** P1 (shared package consumer integration)

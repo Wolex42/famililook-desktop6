@@ -24,6 +24,23 @@ vi.mock('@famililook/shared/rewards', () => ({
   useVariableReward: () => ({ reward: null }),
 }));
 
+vi.mock('@famililook/shared/journey', () => ({
+  SwipeJourney: ({ children }) => children,
+  JourneyCard: ({ children }) => children,
+  useJourneyProgress: () => ({ currentIndex: 0, completed: false, goTo: () => {}, goForward: () => {}, goBack: () => {} }),
+  familimatchJourney: [
+    { id: 'score', type: 'reveal', component: 'CompatibilityScore', props: {} },
+    { id: 'label', type: 'verdict', component: 'ChemistryLabel', props: {} },
+    { id: 'features', type: 'proof', component: 'FeatureBreakdown', props: {} },
+    { id: 'shared', type: 'contrast', component: 'SharedFeatures', props: {} },
+    { id: 'science', type: 'deepdive', component: 'ScienceExplainer', props: {} },
+    { id: 'rare', type: 'deepdive', component: 'RareStat', props: {} },
+    { id: 'share', type: 'share', component: 'ShareCard', props: {} },
+    { id: 'upgrade', type: 'upsell', component: 'DuoUpgrade', props: {} },
+  ],
+  famililookJourney: [],
+}));
+
 // Provide a minimal localStorage / sessionStorage for jsdom
 const storageMock = () => {
   let store = {};
