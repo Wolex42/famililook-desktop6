@@ -5,6 +5,18 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+## 2026-04-18 — Fix 413 upload failure — compress photos before upload (CR-UPLOAD-D6)
+
+### CR-UPLOAD-D6 — Wire @famililook/shared/upload into matchClient.js
+**Description:** Desktop6 was sending raw phone photos (3-8MB each) to the backend, causing 413 Request Entity Too Large. Root cause: desktop2 has `compressPhoto.js` (resizes to 1200px, JPEG 0.8) but desktop6 never had it. Fix: extracted compression to `@famililook/shared@0.5.0/upload` and wired into `matchClient.js compareSolo()`. Photos now compressed before upload (5MB→~200KB). Added explicit 413 error message ("Your photos are too large") instead of generic "Failed to fetch".
+**Files changed:** `package.json`, `package-lock.json`, `src/api/matchClient.js`
+**Cross-repo:** `@famililook/shared@0.5.0` published with new `upload` module (compressPhoto, validateFile, photoConvert — 32 tests). Available to all consumers.
+**Tests:** 51/51 unit PASS, 14/14 E2E PASS
+**Risk Tier:** P1 (production upload failure)
+**Status:** COMPLETE
+
+---
+
 ## 2026-04-17 — SEO, PWA, and social discoverability fixes (CR-SEO-D6)
 
 ### CR-SEO-D6 — Full SEO/social/PWA pass for FamiliMatch

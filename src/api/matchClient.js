@@ -7,6 +7,7 @@
 import { API_BASE, API_KEY } from '../utils/config';
 import { report as reportError } from '../infrastructure/AppErrorBus';
 import { COMPARE_FEATURES } from '../utils/constants';
+import { compressPhoto } from '@famililook/shared/upload';
 
 function getBiometricHeaders() {
   try {
@@ -44,6 +45,9 @@ async function postForm(path, formData) {
     body: formData,
   });
   if (!resp.ok) {
+    if (resp.status === 413) {
+      throw new Error('Your photos are too large. Please use smaller photos (max ~8 MB each).');
+    }
     let msg = `${path} failed: ${resp.status}`;
     try {
       const err = await resp.json();
@@ -110,8 +114,13 @@ async function createMorph(blobA, blobB, featureComparisons) {
  * @param {function} onProgress - (step, progress) callback
  */
 export async function compareSolo(photoA, photoB, onProgress, nameA = 'Person A', nameB = 'Person B') {
-  const blobA = dataUrlToBlob(photoA);
-  const blobB = dataUrlToBlob(photoB);
+  const rawA = dataUrlToBlob(photoA);
+  const rawB = dataUrlToBlob(photoB);
+
+  // Compress before upload — prevents 413 from large phone photos
+  onProgress?.('Preparing photos...', 5);
+  const blobA = await compressPhoto(rawA);
+  const blobB = await compressPhoto(rawB);
 
   // Step 1: Peer-to-peer comparison (symmetric, no kinship framing)
   onProgress?.('Analyzing faces...', 20);
