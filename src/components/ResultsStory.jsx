@@ -284,7 +284,7 @@ export default function ResultsStory({ results, nameA, onReset }) {
 
   if (USE_SHARED_JOURNEY) {
     return (
-      <div>
+      <div style={{ backgroundColor: '#0A0A0F' }}>
         <SwipeJourney
           cards={familimatchJourney}
           componentMap={COMPONENT_MAP}
