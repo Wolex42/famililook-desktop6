@@ -193,6 +193,17 @@ function ScienceExplainer() {
 function RareStat({ results }) {
   const { percentage, feature_comparisons } = results;
   const matchCount = (feature_comparisons || []).filter(fc => fc.match).length;
+  const rarity = matchCount >= 7
+    ? 'mythic'
+    : matchCount >= 6
+      ? 'legendary'
+      : matchCount >= 5
+        ? 'epic'
+        : matchCount >= 4
+          ? 'rare'
+          : matchCount >= 3
+            ? 'uncommon'
+            : 'common';
   const rarityNote = matchCount >= 6
     ? 'Sharing 6+ features is exceptionally rare — only ~5% of pairs achieve this.'
     : matchCount >= 4
@@ -209,7 +220,10 @@ function RareStat({ results }) {
         <h3 className="text-xl font-bold text-white">{matchCount} of 8 Features Match</h3>
       </div>
       <p className="text-sm text-white/50 max-w-xs mx-auto">{rarityNote}</p>
-      <StatHighlight value={percentage} label="Match Score" product="familimatch" />
+      <StatHighlight
+        reward={{ type: 'stat', label: `${matchCount}/8 features match`, value: percentage, rarity }}
+        productId="familimatch"
+      />
     </div>
   );
 }
