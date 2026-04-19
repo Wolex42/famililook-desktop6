@@ -275,51 +275,46 @@ export default function SoloPage() {
               </motion.div>
             )}
 
-            {/* ── RESULTS PHASE ── */}
-            {results && !analyzing && (
-              <motion.div
-                key="results"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.35 }}
-              >
-                <ResultsStory
-                  results={results}
-                  nameA={userName || undefined}
-                  onReset={handleReset}
-                />
-                {/* Share + Challenge buttons */}
-                <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                  <button
-                    onClick={() => setShowShare(true)}
-                    style={{
-                      padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
-                      background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
-                      border: 'none', color: '#fff', fontSize: 15, fontWeight: 700,
-                      cursor: 'pointer', minHeight: 44,
-                    }}
-                  >
-                    Share Your Score
-                  </button>
-                  <button
-                    onClick={handleCreateChallenge}
-                    disabled={creatingChallenge}
-                    style={{
-                      padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
-                      background: 'transparent',
-                      border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)',
-                      fontSize: 15, fontWeight: 600,
-                      cursor: creatingChallenge ? 'wait' : 'pointer', minHeight: 44,
-                      opacity: creatingChallenge ? 0.6 : 1,
-                    }}
-                  >
-                    {creatingChallenge ? 'Creating...' : `Challenge ${results?.name_b || 'a Friend'} 🎯`}
-                  </button>
-                </div>
-              </motion.div>
-            )}
           </AnimatePresence>
+
+          {/* ── RESULTS PHASE — outside AnimatePresence to avoid nesting conflict with SwipeJourney ── */}
+          {results && !analyzing && (
+            <div>
+              <ResultsStory
+                results={results}
+                nameA={userName || undefined}
+                onReset={handleReset}
+              />
+              {/* Share + Challenge buttons */}
+              <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                <button
+                  onClick={() => setShowShare(true)}
+                  style={{
+                    padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
+                    background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
+                    border: 'none', color: '#fff', fontSize: 15, fontWeight: 700,
+                    cursor: 'pointer', minHeight: 44,
+                  }}
+                >
+                  Share Your Score
+                </button>
+                <button
+                  onClick={handleCreateChallenge}
+                  disabled={creatingChallenge}
+                  style={{
+                    padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)',
+                    fontSize: 15, fontWeight: 600,
+                    cursor: creatingChallenge ? 'wait' : 'pointer', minHeight: 44,
+                    opacity: creatingChallenge ? 0.6 : 1,
+                  }}
+                >
+                  {creatingChallenge ? 'Creating...' : `Challenge ${results?.name_b || 'a Friend'} 🎯`}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
