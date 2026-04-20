@@ -125,14 +125,21 @@ export default function LandingPage() {
   const [showUpgradeFor, setShowUpgradeFor] = useState(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeEmail, setUpgradeEmail] = useState('');
+  const [upgradeToast, setUpgradeToast] = useState(null);
+  const [postCheckoutEmail, setPostCheckoutEmail] = useState('');
+  const [showEmailRecovery, setShowEmailRecovery] = useState(false);
   const { history, clearHistory } = useMatchHistory();
   const { format } = useCurrency();
 
   // Signed tier token from URL param — used for backend WebSocket auth
-  const tierToken = useMemo(() => searchParams.get('token') || '', [searchParams]);
+  const paramToken = useMemo(() => searchParams.get('token') || '', [searchParams]);
+  const [activatedToken, setActivatedToken] = useState('');
+  const tierToken = activatedToken || paramToken;
 
   // Derive display tier from token payload (base64 JSON before the dot)
+  const [tierOverride, setTierOverride] = useState(null);
   const userTier = useMemo(() => {
+    if (tierOverride) return tierOverride;
     if (!tierToken) return 'free';
     try {
       const payloadB64 = tierToken.split('.')[0];
@@ -140,11 +147,77 @@ export default function LandingPage() {
       const t = payload.tier;
       return (t && TIER_ORDER[t] !== undefined) ? t : 'free';
     } catch { return 'free'; } // eslint-disable-line no-empty
-  }, [tierToken]);
+  }, [tierToken, tierOverride]);
 
   const isLocked = useCallback((card) => {
     return (TIER_ORDER[card.requiredTier] ?? 0) > (TIER_ORDER[userTier] ?? 0);
   }, [userTier]);
+
+  const activateTier = useCallback((token, email) => {
+    try {
+      const payloadB64 = token.split('.')[0];
+      const payload = JSON.parse(atob(payloadB64));
+      const t = payload.tier;
+      if (t && TIER_ORDER[t] !== undefined && TIER_ORDER[t] > 0) {
+        setActivatedToken(token);
+        setTierOverride(t);
+        setContextTierToken(token);
+        localStorage.setItem('fl:upgrade-email', email);
+        return t;
+      }
+    } catch { /* invalid token */ }
+    return null;
+  }, [setContextTierToken]);
+
+  const fetchTierToken = useCallback(async (email) => {
+    const headers = {};
+    if (API_KEY) headers['X-API-Key'] = API_KEY;
+    const resp = await fetch(
+      `${API_BASE}/auth/match-token?email=${encodeURIComponent(email)}`,
+      { headers }
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    return data.token || null;
+  }, []);
+
+  // Post-checkout: detect ?upgraded=plus and activate tier
+  useEffect(() => {
+    const upgraded = searchParams.get('upgraded');
+    if (upgraded !== 'plus') return;
+    const savedEmail = localStorage.getItem('fl:upgrade-email');
+    if (savedEmail) {
+      fetchTierToken(savedEmail).then((token) => {
+        if (token) {
+          const tier = activateTier(token, savedEmail);
+          if (tier) {
+            setUpgradeToast('Welcome to Plus! Duo and Group modes are now unlocked.');
+            setTimeout(() => setUpgradeToast(null), 3000);
+          }
+        }
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('upgraded');
+        const qs = newParams.toString();
+        window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+      });
+    } else {
+      setShowEmailRecovery(true);
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('upgraded');
+      const qs = newParams.toString();
+      window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Returning user: silently restore tier from saved email
+  useEffect(() => {
+    if (searchParams.get('token') || searchParams.get('upgraded')) return;
+    const savedEmail = localStorage.getItem('fl:upgrade-email');
+    if (!savedEmail) return;
+    fetchTierToken(savedEmail).then((token) => {
+      if (token) activateTier(token, savedEmail);
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     analytics.trackPageView('landing');
@@ -200,6 +273,7 @@ export default function LandingPage() {
       });
       const data = await resp.json();
       if (data.checkoutUrl) {
+        localStorage.setItem('fl:upgrade-email', upgradeEmail.trim());
         analytics.track('upgrade_checkout_started', { mode: showUpgradeFor?.id, tier: 'plus' });
         window.location.href = data.checkoutUrl;
       }
@@ -459,6 +533,72 @@ export default function LandingPage() {
         <a href="/privacy" className="hover:text-gray-500 transition-colors min-h-[44px] flex items-center px-3">Privacy</a>
         <a href="/terms" className="hover:text-gray-500 transition-colors min-h-[44px] flex items-center px-3">Terms</a>
       </div>
+
+      {/* Upgrade success toast */}
+      {upgradeToast && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-xl text-sm font-semibold text-white"
+          style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)', boxShadow: '0 8px 32px rgba(168,85,247,0.4)' }}
+        >
+          {upgradeToast}
+        </motion.div>
+      )}
+
+      {/* Email recovery for post-checkout */}
+      {showEmailRecovery && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="rounded-2xl p-6 max-w-xs w-full text-center"
+            style={{ background: 'linear-gradient(180deg, #1a1028 0%, #0f0a1a 100%)', border: '1px solid rgba(168,85,247,0.3)' }}
+          >
+            <Sparkles size={28} className="text-purple-400 mx-auto mb-3" />
+            <h3 className="text-lg font-bold text-white mb-2">Activate Plus</h3>
+            <p className="text-sm text-gray-400 mb-4">Enter the email you used at checkout.</p>
+            <input
+              type="email" placeholder="your@email.com" value={postCheckoutEmail}
+              onChange={(e) => setPostCheckoutEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-purple-500 mb-4"
+              style={{ minHeight: 44 }}
+            />
+            <button
+              onClick={async () => {
+                const email = postCheckoutEmail.trim();
+                if (!email) return;
+                const token = await fetchTierToken(email);
+                if (token) {
+                  const tier = activateTier(token, email);
+                  if (tier) {
+                    setShowEmailRecovery(false);
+                    setUpgradeToast('Welcome to Plus! Duo and Group modes are now unlocked.');
+                    setTimeout(() => setUpgradeToast(null), 3000);
+                    return;
+                  }
+                }
+                setUpgradeToast('Could not verify subscription. Check your email and try again.');
+                setTimeout(() => setUpgradeToast(null), 3000);
+              }}
+              disabled={!postCheckoutEmail.trim() || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(postCheckoutEmail)}
+              className="block w-full py-3 rounded-xl font-bold text-sm text-white mb-3"
+              style={{ background: 'linear-gradient(135deg, #a855f7, #ec4899)', minHeight: 44 }}
+            >
+              Activate
+            </button>
+            <button
+              onClick={() => setShowEmailRecovery(false)}
+              className="text-sm text-gray-500 hover:text-gray-300 transition-colors min-h-[44px]"
+            >
+              Skip
+            </button>
+          </motion.div>
+        </div>
+      )}
 
       {showConsent && <ConsentModal onConsented={handleConsented} />}
 

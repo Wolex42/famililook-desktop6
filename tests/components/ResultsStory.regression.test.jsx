@@ -225,9 +225,9 @@ describe('Regression: All 8 componentMap entries render without crash', () => {
   it('SharedFeatures renders matched features', () => {
     renderStory();
     const sharedCard = screen.getByTestId('card-shared');
-    expect(sharedCard.textContent).toContain('What You Share');
-    // 4 shared features
-    expect(sharedCard.textContent).toContain('4 of 8 features');
+    expect(sharedCard.textContent).toContain('What Connects You');
+    // Shared features listed with "Same X: label" format
+    expect(sharedCard.textContent).toContain('These are the features that connect you');
   });
 
   it('SharedFeatures handles zero shared features without crash', () => {
@@ -249,13 +249,13 @@ describe('Regression: All 8 componentMap entries render without crash', () => {
   it('RareStat renders match count and rarity stat', () => {
     renderStory();
     const rareCard = screen.getByTestId('card-rare');
-    expect(rareCard.textContent).toContain('Did You Know?');
-    expect(rareCard.textContent).toContain('4 of 8 Features Match');
+    expect(rareCard.textContent).toContain('How Rare Is This?');
+    expect(rareCard.textContent).toContain('4 of 8');
   });
 
   it('ShareCardSlide renders fusion unavailable when no image', () => {
     renderStory();
-    expect(screen.getByText('Face Fusion')).toBeInTheDocument();
+    expect(screen.getByText('Challenge Your Friends')).toBeInTheDocument();
     expect(screen.getByText('Fusion unavailable')).toBeInTheDocument();
   });
 
@@ -306,7 +306,7 @@ describe('Regression: All 8 componentMap entries render without crash', () => {
     const labelCard = screen.getByTestId('card-label');
     expect(labelCard.textContent).toContain('Feature Twins');
     const rareCard = screen.getByTestId('card-rare');
-    expect(rareCard.textContent).toContain('8 of 8 Features Match');
+    expect(rareCard.textContent).toContain('8 of 8');
   });
 });
 

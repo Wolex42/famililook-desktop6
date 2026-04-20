@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, RotateCcw, Check, X, Users, Sparkles, FlaskConical, ChevronUp, Zap } from 'lucide-react';
+import { Home, RotateCcw, Users, Sparkles, FlaskConical, ChevronUp, Zap } from 'lucide-react';
 import { SharpIcon, featureIconMap } from '@famililook/shared/icons';
 import { CelebrationBurst, StatHighlight } from '@famililook/shared/rewards';
 import { SwipeJourney, familimatchJourney } from '@famililook/shared/journey';
@@ -18,10 +18,10 @@ import { SwipeJourney, familimatchJourney } from '@famililook/shared/journey';
 const USE_SHARED_JOURNEY = import.meta.env.VITE_USE_SHARED_JOURNEY === 'true';
 
 // ── Shared helpers ──
-function FeatureIconResolved({ feature, size = 24, className }) {
+function FeatureIconResolved({ feature, size = 24, className, style }) {
   const Icon = featureIconMap[feature];
   if (!Icon) return null;
-  return <SharpIcon><Icon size={size} className={className} /></SharpIcon>;
+  return <SharpIcon><Icon size={size} className={className} style={style} /></SharpIcon>;
 }
 
 function useAnimatedNumber(target, duration = 1800, delay = 600) {
@@ -237,52 +237,62 @@ function FeatureBreakdown({ results, displayA, displayB }) {
   const { feature_comparisons } = results;
   return (
     <div className="w-full max-w-sm mx-auto px-4">
-      <p className="text-xs text-white/40 uppercase tracking-wider text-center mb-4">Feature Breakdown</p>
-      <div className="space-y-1">
-        <div className="grid grid-cols-[1fr_60px_60px_32px] gap-2 px-3 py-2 text-xs text-white/30">
-          <span>Feature</span>
-          <span className="text-center">{displayA}</span>
-          <span className="text-center">{displayB}</span>
-          <span className="text-center">Match</span>
-        </div>
+      <p className="text-xs text-white/40 uppercase tracking-wider text-center mb-5">Feature Breakdown</p>
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.08 } } }}
+        className="space-y-2"
+      >
         {(feature_comparisons || []).map((fc) => (
-          <div
+          <motion.div
             key={fc.feature}
-            className={`grid grid-cols-[1fr_60px_60px_32px] gap-2 px-3 py-2 rounded-lg text-xs ${fc.match ? 'bg-green-500/5' : 'bg-white/[0.02]'}`}
+            variants={{ hidden: { opacity: 0, y: 8 }, visible: { opacity: 1, y: 0 } }}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl"
+            style={{
+              background: fc.match ? 'rgba(74,222,128,0.06)' : 'rgba(255,255,255,0.02)',
+              borderLeft: fc.match ? '3px solid rgba(74,222,128,0.3)' : '3px solid transparent',
+            }}
           >
-            <span className="text-white/70 capitalize flex items-center gap-1.5">
-              <FeatureIconResolved feature={fc.feature} size={14} />
-              {fc.feature.replace('_', ' ')}
-            </span>
-            <span className="text-white/50 text-center truncate">{fc.label_a}</span>
-            <span className="text-white/50 text-center truncate">{fc.label_b}</span>
-            <span className="text-center">
-              {fc.match ? <Check size={14} className="inline text-green-400" /> : <X size={14} className="inline text-white/20" />}
-            </span>
-          </div>
+            <FeatureIconResolved feature={fc.feature} size={24} className={fc.match ? 'text-green-400' : 'text-white/30'} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-white/80 capitalize">{fc.feature.replace('_', ' ')}</div>
+              <div className="text-xs text-white/40 truncate">{fc.label_a} vs {fc.label_b}</div>
+            </div>
+            {fc.match && <div className="w-2 h-2 rounded-full bg-green-400 flex-shrink-0" />}
+          </motion.div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }
 
 function SharedFeatures({ results, displayA, displayB }) {
-  const shared = (results.feature_comparisons || []).filter(fc => fc.match);
+  const { feature_comparisons, chemistry_color } = results;
+  const color = chemistry_color || '#5e5ce6';
+  const shared = (feature_comparisons || []).filter(fc => fc.match);
   if (shared.length === 0) {
     return <div className="text-center text-white/40 text-sm px-6">No shared features detected — you complement each other!</div>;
   }
   return (
-    <div className="text-center px-6 space-y-4">
-      <p className="text-xs text-white/40 uppercase tracking-wider">What You Share</p>
+    <div className="text-center px-6 space-y-5">
+      <p className="text-xs text-white/40 uppercase tracking-wider">What Connects You</p>
       <div className="flex flex-wrap justify-center gap-3">
         {shared.map(fc => (
-          <div key={fc.feature} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/10 border border-green-500/20">
-            <FeatureIconResolved feature={fc.feature} size={16} className="text-green-400" />
-            <span className="text-white text-sm capitalize">{fc.feature.replace('_', ' ')}</span>
+          <div
+            key={fc.feature}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
+            style={{
+              background: color + '14',
+              border: `1px solid ${color}33`,
+            }}
+          >
+            <FeatureIconResolved feature={fc.feature} size={16} className="flex-shrink-0" style={{ color }} />
+            <span className="text-white text-sm">Same {fc.feature.replace('_', ' ')}: {fc.label_a}</span>
           </div>
         ))}
       </div>
-      <p className="text-sm text-white/30">{displayA} and {displayB} share {shared.length} of 8 features</p>
+      <p className="text-sm text-white/40">These are the features that connect you.</p>
     </div>
   );
 }
@@ -383,33 +393,39 @@ function SocialProof() {
 function RareStat({ results }) {
   const { percentage, feature_comparisons } = results;
   const matchCount = (feature_comparisons || []).filter(fc => fc.match).length;
-  const rarity = matchCount >= 7
-    ? 'mythic'
-    : matchCount >= 6
-      ? 'legendary'
-      : matchCount >= 5
-        ? 'epic'
-        : matchCount >= 4
-          ? 'rare'
-          : matchCount >= 3
-            ? 'uncommon'
-            : 'common';
+  const rarity = matchCount >= 7 ? 'mythic'
+    : matchCount >= 6 ? 'legendary'
+    : matchCount >= 5 ? 'epic'
+    : matchCount >= 4 ? 'rare'
+    : matchCount >= 3 ? 'uncommon'
+    : 'common';
   const rarityNote = matchCount >= 6
     ? 'Sharing 6+ features is exceptionally rare — only ~5% of pairs achieve this.'
     : matchCount >= 4
       ? 'With 4-5 shared features, you have an above-average connection.'
       : 'Your unique differences make you a complementary pair.';
+  const percentile = matchCount >= 7 ? 'Top 1% of all matches'
+    : matchCount >= 6 ? 'Top 5% of all matches'
+    : matchCount >= 5 ? 'Top 15% of all matches'
+    : matchCount >= 4 ? 'Top 30% of all matches'
+    : matchCount >= 3 ? 'Top 50% of all matches'
+    : 'Every match tells a story';
 
   return (
     <div className="text-center px-6 space-y-6">
-      <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center mx-auto">
-        <Sparkles size={28} className="text-amber-400" />
+      <div
+        className="w-16 h-16 rounded-2xl bg-amber-500/15 border border-amber-500/20 flex items-center justify-center mx-auto"
+        style={{ boxShadow: '0 0 40px rgba(245,158,11,0.3)' }}
+      >
+        <Sparkles size={32} className="text-amber-400" />
       </div>
       <div className="space-y-2">
-        <p className="text-xs text-white/40 uppercase tracking-wider">Did You Know?</p>
-        <h3 className="text-xl font-bold text-white">{matchCount} of 8 Features Match</h3>
+        <p className="text-xs text-white/40 uppercase tracking-wider">How Rare Is This?</p>
+        <h3 className="text-3xl font-black text-white">{matchCount} of 8</h3>
+        <p className="text-sm text-white/50">features match</p>
       </div>
       <p className="text-sm text-white/50 max-w-xs mx-auto">{rarityNote}</p>
+      <p className="text-xs text-white/30 italic">{percentile}</p>
       <StatHighlight
         reward={{ type: 'stat', label: `${matchCount}/8 features match`, value: percentage, rarity }}
         productId="familimatch"
@@ -419,12 +435,26 @@ function RareStat({ results }) {
 }
 
 function ShareCardSlide({ results }) {
-  const { fusion_image } = results;
+  const { fusion_image, percentage, chemistry_label, chemistry_color } = results;
+  const color = chemistry_color || '#5e5ce6';
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          text: `I got ${percentage}% — ${chemistry_label} — on FamiliMatch! Think you can beat my score? 🔥`,
+        });
+      } catch { /* user cancelled */ }
+    }
+  };
+
   return (
-    <div className="text-center px-6 space-y-4">
-      <p className="text-xs text-white/40 uppercase tracking-wider">Face Fusion</p>
+    <div className="text-center px-6 space-y-5">
+      <h3 className="text-xl font-bold text-white">Challenge Your Friends</h3>
       {fusion_image ? (
-        <div className="relative mx-auto w-48 h-48 rounded-2xl overflow-hidden border border-white/10">
+        <div
+          className="relative mx-auto rounded-2xl overflow-hidden"
+          style={{ width: 288, height: 288, border: `2px solid ${color}40` }}
+        >
           <img
             src={fusion_image.startsWith('data:') ? fusion_image : `data:image/png;base64,${fusion_image}`}
             alt="Face fusion"
@@ -432,11 +462,23 @@ function ShareCardSlide({ results }) {
           />
         </div>
       ) : (
-        <div className="mx-auto w-48 h-48 rounded-2xl bg-white/[0.03] border border-white/10 flex items-center justify-center">
+        <div
+          className="mx-auto rounded-2xl bg-white/[0.03] flex items-center justify-center"
+          style={{ width: 288, height: 288, border: `2px solid ${color}20` }}
+        >
           <p className="text-sm text-white/25">Fusion unavailable</p>
         </div>
       )}
-      <p className="text-sm text-white/40 max-w-xs mx-auto">Share your result with friends and challenge them to beat your score!</p>
+      <p className="text-sm text-white/50 max-w-xs mx-auto">Think someone can beat your score?</p>
+      {typeof navigator !== 'undefined' && navigator.share && (
+        <button
+          onClick={handleShare}
+          className="px-8 py-3 rounded-xl text-sm font-bold text-white transition-all"
+          style={{ background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)', minHeight: 44 }}
+        >
+          Share Result
+        </button>
+      )}
     </div>
   );
 }
