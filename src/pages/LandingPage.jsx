@@ -209,6 +209,23 @@ export default function LandingPage() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-open upgrade modal when arriving from DuoUpgrade card
+  useEffect(() => {
+    const upgradeParam = searchParams.get('upgrade');
+    if (upgradeParam === 'plus') {
+      // Pre-fill email from localStorage if available
+      const savedEmail = localStorage.getItem('fl:upgrade-email');
+      if (savedEmail) setUpgradeEmail(savedEmail);
+      // Open the upgrade modal with Duo as the target mode
+      setShowUpgradeFor({ id: 'duo', title: 'Duo', path: '/room' });
+      // Clean the URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('upgrade');
+      const qs = newParams.toString();
+      window.history.replaceState({}, '', qs ? `?${qs}` : window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Returning user: silently restore tier from saved email
   useEffect(() => {
     if (searchParams.get('token') || searchParams.get('upgraded')) return;
