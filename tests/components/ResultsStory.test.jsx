@@ -26,6 +26,8 @@ vi.mock('framer-motion', () => ({
   motion: {
     div: ({ children, ...props }) => <div {...filterDomProps(props)}>{children}</div>,
     button: ({ children, ...props }) => <button {...filterDomProps(props)}>{children}</button>,
+    h2: ({ children, ...props }) => <h2 {...filterDomProps(props)}>{children}</h2>,
+    p: ({ children, ...props }) => <p {...filterDomProps(props)}>{children}</p>,
   },
   AnimatePresence: ({ children }) => <>{children}</>,
 }));
@@ -49,6 +51,8 @@ vi.mock('lucide-react', () => ({
   Users: (props) => <span data-testid="icon-users" />,
   Sparkles: (props) => <span data-testid="icon-sparkles" />,
   FlaskConical: (props) => <span data-testid="icon-flask" />,
+  ChevronUp: (props) => <span data-testid="icon-chevron-up" />,
+  Zap: (props) => <span data-testid="icon-zap" />,
 }));
 
 // Import after mocks

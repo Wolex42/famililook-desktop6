@@ -10,7 +10,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, RotateCcw, Check, X, Users, Sparkles, FlaskConical } from 'lucide-react';
+import { Home, RotateCcw, Check, X, Users, Sparkles, FlaskConical, ChevronUp, Zap } from 'lucide-react';
 import { SharpIcon, featureIconMap } from '@famililook/shared/icons';
 import { CelebrationBurst, StatHighlight } from '@famililook/shared/rewards';
 import { SwipeJourney, familimatchJourney } from '@famililook/shared/journey';
@@ -50,70 +50,185 @@ function useAnimatedNumber(target, duration = 1800, delay = 600) {
 // via SwipeJourney's cardProps
 // ════════════════════════════════════════════
 
-function CompatibilityScore({ results, displayA, displayB }) {
-  const { percentage, chemistry_label, chemistry_color, feature_comparisons } = results;
-  const animatedPct = useAnimatedNumber(percentage);
+function CompatibilityScore({ results, displayA, displayB, photoA, photoB }) {
+  const { percentage, chemistry_label, chemistry_color } = results;
+  const animatedPct = useAnimatedNumber(percentage, 1800, 1000);
   const [glowActive, setGlowActive] = useState(false);
-  const matchCount = (feature_comparisons || []).filter(fc => fc.match).length;
+  const [showReaction, setShowReaction] = useState(false);
+  const color = chemistry_color || '#5e5ce6';
+
+  const reaction = percentage >= 85 ? 'No way.'
+    : percentage >= 70 ? 'Woah.'
+    : percentage >= 55 ? 'Not bad at all.'
+    : percentage >= 40 ? 'Interesting...'
+    : 'Opposites, huh?';
 
   useEffect(() => {
-    const timer = setTimeout(() => setGlowActive(true), 2400);
-    return () => clearTimeout(timer);
+    const glowTimer = setTimeout(() => setGlowActive(true), 2800);
+    const reactionTimer = setTimeout(() => setShowReaction(true), 3200);
+    return () => { clearTimeout(glowTimer); clearTimeout(reactionTimer); };
   }, [percentage]);
 
   return (
     <div className="flex flex-col items-center justify-center text-center px-6">
       <CelebrationBurst score={percentage} threshold={70} chemistryLabel={chemistry_label} active={glowActive} />
+      {/* Names */}
       <motion.div
-        initial={{ scale: 0.5, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 120, damping: 12 }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+        className="text-sm text-white/60 mb-5"
       >
-        <div className="text-sm text-white/60 mb-3">{displayA} & {displayB}</div>
-        <div
-          className="font-black tracking-tighter mb-2"
-          style={{
-            fontSize: 72, lineHeight: 1,
-            background: 'linear-gradient(145deg, #0a84ff, #5e5ce6)',
-            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-            transition: 'filter 0.6s ease',
-            filter: glowActive ? `drop-shadow(0 0 30px ${chemistry_color || '#5e5ce6'}60)` : 'none',
-          }}
+        {displayA} & {displayB}
+      </motion.div>
+      {/* Face avatars flanking score */}
+      <div className="flex items-center justify-center gap-6 mb-4" style={{ minHeight: 80 }}>
+        {/* Left face */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4, duration: 0.3 }}
         >
-          {animatedPct}%
-        </div>
-        <div className="text-sm text-white/40 mb-4">Match Score</div>
-        <div className="text-xs text-white/30 mt-3">{matchCount} of {(feature_comparisons || []).length || 8} features match</div>
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%', overflow: 'hidden',
+            border: `3px solid ${color}66`,
+            animation: glowActive ? 'pulseRing 2s ease-in-out infinite' : 'none',
+          }}>
+            {photoA ? (
+              <img src={typeof photoA === 'string' ? photoA : URL.createObjectURL(photoA)} alt={displayA} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', background: color + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700 }}>
+                {displayA.charAt(0)}
+              </div>
+            )}
+          </div>
+        </motion.div>
+        {/* Percentage */}
+        <motion.div
+          initial={{ scale: 0.5, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ delay: 0.6, type: 'spring', stiffness: 120, damping: 12 }}
+        >
+          <div
+            className="font-black tracking-tighter"
+            style={{
+              fontSize: 64, lineHeight: 1,
+              background: `linear-gradient(145deg, ${color}, #5e5ce6)`,
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              transition: 'filter 0.6s ease',
+              filter: glowActive ? `drop-shadow(0 0 30px ${color}60)` : 'none',
+            }}
+          >
+            {animatedPct}%
+          </div>
+        </motion.div>
+        {/* Right face */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.4, duration: 0.3 }}
+        >
+          <div style={{
+            width: 64, height: 64, borderRadius: '50%', overflow: 'hidden',
+            border: `3px solid ${color}66`,
+            animation: glowActive ? 'pulseRing 2s ease-in-out infinite' : 'none',
+          }}>
+            {photoB ? (
+              <img src={typeof photoB === 'string' ? photoB : URL.createObjectURL(photoB)} alt={displayB} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ width: '100%', height: '100%', background: color + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 20, fontWeight: 700 }}>
+                {displayB.charAt(0)}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+      {/* Reactive headline */}
+      <motion.div
+        initial={{ opacity: 0, y: 4 }}
+        animate={{ opacity: showReaction ? 1 : 0, y: showReaction ? 0 : 4 }}
+        transition={{ duration: 0.3 }}
+        className="text-sm text-white/60 mt-2"
+      >
+        {reaction}
       </motion.div>
     </div>
   );
 }
 
-function ChemistryLabel({ results }) {
-  const { chemistry_label, chemistry_color } = results;
+function ChemistryLabel({ results, displayA, displayB, photoA, photoB }) {
+  const { chemistry_label } = results;
+
+  const GRADIENT_MAP = {
+    'Feature Twins': 'radial-gradient(ellipse at 50% 38%, #FFD700 0%, #B8860B 55%, #0D0F1A 100%)',
+    'Magnetic Match': 'radial-gradient(ellipse at 50% 38%, #8B5CF6 0%, #5B21B6 55%, #0D0F1A 100%)',
+    'Complementary Pair': 'radial-gradient(ellipse at 50% 38%, #3B82F6 0%, #1E3A8A 55%, #0D0F1A 100%)',
+    'Interesting Contrast': 'radial-gradient(ellipse at 50% 38%, #14B8A6 0%, #065F53 55%, #0D0F1A 100%)',
+    'Opposites Attract': 'radial-gradient(ellipse at 50% 38%, #F97316 0%, #9A3412 55%, #0D0F1A 100%)',
+  };
+
+  const IDENTITY_MAP = {
+    'Feature Twins': 'You two are basically the same person.',
+    'Magnetic Match': 'Something about you two just clicks.',
+    'Complementary Pair': 'Different in all the right ways.',
+    'Interesting Contrast': 'You keep each other guessing.',
+    'Opposites Attract': 'Proof that differences pull you together.',
+  };
+
+  const gradient = GRADIENT_MAP[chemistry_label] || GRADIENT_MAP['Magnetic Match'];
+  const subtext = IDENTITY_MAP[chemistry_label] || '';
+
+  const renderFace = (photo, name, delay) => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay, duration: 0.4, ease: 'easeOut' }}
+    >
+      <div style={{
+        width: 72, height: 72, borderRadius: '50%', overflow: 'hidden',
+        border: '3px solid rgba(255,255,255,0.6)',
+      }}>
+        {photo ? (
+          <img src={typeof photo === 'string' ? photo : URL.createObjectURL(photo)} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 22, fontWeight: 700 }}>
+            {name.charAt(0)}
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+
   return (
-    <div className="flex flex-col items-center justify-center text-center px-6">
-      <motion.div
+    <div style={{
+      position: 'absolute', inset: 0, background: gradient,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-start',
+      textAlign: 'center', paddingTop: '25vh', paddingLeft: 24, paddingRight: 24,
+    }}>
+      {/* Face avatars */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+        {renderFace(photoA, displayA, 0.2)}
+        {renderFace(photoB, displayB, 0.2)}
+      </div>
+      {/* Chemistry label headline */}
+      <motion.h2
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-        className="space-y-4"
+        transition={{ delay: 0.5, type: 'spring', stiffness: 260, damping: 18 }}
+        className="font-black text-white"
+        style={{ fontSize: 32, lineHeight: 1.1, marginBottom: 12 }}
       >
-        <p className="text-xs text-white/40 uppercase tracking-wider">Your Chemistry</p>
-        <div
-          className="inline-block px-8 py-4 rounded-full text-2xl font-black"
-          style={{
-            background: `${chemistry_color || '#5e5ce6'}20`,
-            color: chemistry_color || '#5e5ce6',
-            textShadow: `0 0 40px ${chemistry_color || '#5e5ce6'}40`,
-          }}
-        >
-          {chemistry_label}
-        </div>
-        <p className="text-sm text-white/40 max-w-xs">
-          This is your unique chemistry profile based on 8 facial features analysed by AI.
-        </p>
-      </motion.div>
+        {chemistry_label}
+      </motion.h2>
+      {/* Subtext */}
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8, duration: 0.4 }}
+        style={{ fontSize: 16, color: 'rgba(255,255,255,0.8)', maxWidth: 280 }}
+      >
+        {subtext}
+      </motion.p>
     </div>
   );
 }
@@ -172,20 +287,95 @@ function SharedFeatures({ results, displayA, displayB }) {
   );
 }
 
-function ScienceExplainer() {
+function SocialProof() {
+  const BASELINE = 2847;
+  const [count, setCount] = useState(0);
+  const [targetCount, setTargetCount] = useState(BASELINE);
+  const [entered, setEntered] = useState(false);
+  const [shimmerDone, setShimmerDone] = useState(false);
+
+  // Count-up animation on entry
+  useEffect(() => {
+    setEntered(true);
+    const start = performance.now();
+    const duration = 800;
+    let raf;
+    const tick = (now) => {
+      const elapsed = now - start;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setCount(Math.round(eased * BASELINE));
+      if (progress < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  // Live tick: +1 every 3-8s
+  useEffect(() => {
+    const tick = () => {
+      setTargetCount(prev => prev + 1);
+      setCount(prev => prev + 1);
+      const next = 3000 + Math.random() * 5000;
+      timer = setTimeout(tick, next);
+    };
+    let timer = setTimeout(tick, 3000 + Math.random() * 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Shimmer once after 1.2s
+  useEffect(() => {
+    const t = setTimeout(() => setShimmerDone(true), 3200);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="text-center px-6 space-y-6">
-      <div className="w-14 h-14 rounded-2xl bg-blue-500/15 border border-blue-500/20 flex items-center justify-center mx-auto">
-        <FlaskConical size={28} className="text-blue-400" />
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: 'radial-gradient(circle at 50% 50%, rgba(10,132,255,0.08) 0%, transparent 60%), #161828',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      textAlign: 'center', padding: '0 24px', gap: 32,
+    }}>
+      {/* Live counter */}
+      <div>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: entered ? 1 : 0, scale: entered ? 1 : 0.9 }}
+          transition={{ duration: 0.4 }}
+          className="font-black text-white"
+          style={{ fontSize: 28 }}
+        >
+          {count.toLocaleString()}
+        </motion.div>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>
+          comparisons today
+        </p>
       </div>
-      <div className="space-y-2">
-        <p className="text-xs text-white/40 uppercase tracking-wider">The Science</p>
-        <h3 className="text-xl font-bold text-white">How We Compare</h3>
+      {/* Rarity teaser with shimmer */}
+      <div style={{ position: 'relative', overflow: 'hidden' }}>
+        <p className="font-semibold" style={{ fontSize: 18, color: 'rgba(255,255,255,0.7)' }}>
+          Your match is rarer than you think.
+        </p>
+        {!shimmerDone && (
+          <motion.div
+            initial={{ x: '-100%' }}
+            animate={{ x: '200%' }}
+            transition={{ duration: 2, ease: 'linear' }}
+            style={{
+              position: 'absolute', top: 0, left: 0, width: '50%', height: '100%',
+              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
+              pointerEvents: 'none',
+            }}
+          />
+        )}
       </div>
-      <div className="text-sm text-white/50 max-w-xs mx-auto space-y-3">
-        <p>We analyse 128-dimensional face embeddings and 8 distinct facial features using computer vision.</p>
-        <p>Your score combines <strong className="text-white/70">60% structural similarity</strong> (face shape, proportions) with <strong className="text-white/70">40% feature matching</strong> (eyes, nose, smile).</p>
-      </div>
+      {/* Upward chevron */}
+      <motion.div
+        animate={{ y: [0, -4, 0] }}
+        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+      >
+        <ChevronUp size={16} style={{ color: 'rgba(255,255,255,0.2)' }} />
+      </motion.div>
     </div>
   );
 }
@@ -251,22 +441,90 @@ function ShareCardSlide({ results }) {
   );
 }
 
-function DuoUpgrade() {
+function DuoUpgrade({ results, photoA, photoB }) {
+  const navigate = useNavigate();
+  const { chemistry_color, percentage } = results || {};
+  const color = chemistry_color || '#5e5ce6';
+  const displayA = results?.name_a || 'Person A';
+  const displayB = results?.name_b || 'Person B';
+
+  const renderFace = (photo, name) => (
+    <div style={{
+      width: 56, height: 56, borderRadius: '50%', overflow: 'hidden',
+      border: `2px solid ${color}4D`,
+    }}>
+      {photo ? (
+        <img src={typeof photo === 'string' ? photo : URL.createObjectURL(photo)} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      ) : (
+        <div style={{ width: '100%', height: '100%', background: color + '30', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 18, fontWeight: 700 }}>
+          {name.charAt(0)}
+        </div>
+      )}
+    </div>
+  );
+
   return (
-    <div className="text-center px-6 space-y-6">
-      <div className="w-14 h-14 rounded-2xl bg-violet-500/15 border border-violet-500/20 flex items-center justify-center mx-auto">
-        <Users size={28} className="text-violet-400" />
+    <div style={{
+      position: 'absolute', inset: 0,
+      background: `radial-gradient(ellipse at 50% 30%, ${color}15 0%, transparent 70%), #161828`,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      textAlign: 'center', padding: '0 24px', gap: 16,
+    }}>
+      {/* Face avatars with Zap icon between */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+        {renderFace(photoA, displayA)}
+        <Zap size={16} style={{ color }} />
+        {renderFace(photoB, displayB)}
       </div>
-      <div className="space-y-2">
-        <p className="text-xs text-white/40 uppercase tracking-wider">Go Further</p>
-        <h3 className="text-xl font-bold text-white">Try Duo Mode</h3>
+      {/* Loading bar */}
+      <div style={{ width: '100%', maxWidth: 200, height: 4, borderRadius: 9999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+        <div style={{
+          height: '100%', borderRadius: 9999, background: color,
+          animation: 'fillBar 2s ease-out forwards',
+        }} />
       </div>
-      <p className="text-sm text-white/50 max-w-xs mx-auto">
-        Compare in real-time with a friend. Both upload simultaneously and see your chemistry reveal together.
+      {/* Headline */}
+      <motion.h2
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.4 }}
+        className="font-black text-white"
+        style={{ fontSize: 24, lineHeight: 1.15, maxWidth: 280 }}
+      >
+        See their face when the score drops.
+      </motion.h2>
+      {/* Body */}
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5, duration: 0.4 }}
+        style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', maxWidth: 280 }}
+      >
+        Upload together, chat while you wait, watch the score drop at the same moment.
+      </motion.p>
+      {/* CTA button */}
+      <motion.button
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.7, duration: 0.3 }}
+        onClick={() => navigate('/?upgrade=plus')}
+        style={{
+          width: '100%', maxWidth: 320, padding: '14px 24px', borderRadius: 14,
+          background: `linear-gradient(135deg, ${color}, #5e5ce6)`,
+          border: 'none', color: '#fff', fontSize: 16, fontWeight: 700,
+          cursor: 'pointer', minHeight: 44,
+        }}
+      >
+        Get Plus
+      </motion.button>
+      {/* Price */}
+      <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+        £3.99/mo · cancel anytime
       </p>
-      <div className="inline-block px-6 py-3 rounded-xl text-sm font-bold text-white/50 border border-white/10">
-        Coming with Plus
-      </div>
+      {/* Sub-line */}
+      <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', margin: 0 }}>
+        Includes Duo, Group, and all FamiliLook products.
+      </p>
     </div>
   );
 }
@@ -279,7 +537,7 @@ const COMPONENT_MAP = {
   ChemistryLabel,
   FeatureBreakdown,
   SharedFeatures,
-  ScienceExplainer,
+  ScienceExplainer: SocialProof,
   RareStat,
   ShareCard: ShareCardSlide,
   DuoUpgrade,
@@ -288,7 +546,7 @@ const COMPONENT_MAP = {
 // ════════════════════════════════════════════
 // Main export — feature flag switch
 // ════════════════════════════════════════════
-export default function ResultsStory({ results, nameA, onReset }) {
+export default function ResultsStory({ results, nameA, onReset, photoA, photoB }) {
   const navigate = useNavigate();
 
   if (!results) return null;
@@ -303,7 +561,7 @@ export default function ResultsStory({ results, nameA, onReset }) {
           cards={familimatchJourney}
           componentMap={COMPONENT_MAP}
           productId="familimatch"
-          cardProps={{ results, displayA, displayB, onReset }}
+          cardProps={{ results, displayA, displayB, onReset, photoA, photoB }}
           onComplete={() => {}}
           height="calc(100dvh - 92px)"
         />

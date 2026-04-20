@@ -39,3 +39,17 @@ body {
 .dot-bounce {
   animation: dotBounce 1.4s ease-in-out infinite;
 }
+
+/* ── Card 1: pulse ring on face avatars ────────────────────────── */
+
+@keyframes pulseRing {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+
+/* ── Card 8: loading bar fill animation ────────────────────────── */
+
+@keyframes fillBar {
+  0% { width: 0; }
+  100% { width: 100%; }
+}

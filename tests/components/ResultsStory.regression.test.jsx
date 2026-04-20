@@ -30,17 +30,19 @@ let capturedStatHighlightProps = null;
 let capturedJourneyCardProps = [];
 
 // ── Mock framer-motion ──
-vi.mock('framer-motion', () => ({
-  motion: {
-    div: ({ children, initial, animate, exit, transition, whileHover, whileTap,
-            variants, layout, layoutId, onAnimationComplete, ...rest }) =>
-      <div {...rest}>{children}</div>,
-    button: ({ children, initial, animate, exit, transition, whileHover, whileTap,
-               variants, layout, layoutId, onAnimationComplete, ...rest }) =>
-      <button {...rest}>{children}</button>,
-  },
-  AnimatePresence: ({ children }) => <>{children}</>,
-}));
+vi.mock('framer-motion', () => {
+  const filterMotionProps = ({ children, initial, animate, exit, transition, whileHover, whileTap,
+    variants, layout, layoutId, onAnimationComplete, ...rest }) => ({ children, rest });
+  return {
+    motion: {
+      div: (props) => { const { children, rest } = filterMotionProps(props); return <div {...rest}>{children}</div>; },
+      button: (props) => { const { children, rest } = filterMotionProps(props); return <button {...rest}>{children}</button>; },
+      h2: (props) => { const { children, rest } = filterMotionProps(props); return <h2 {...rest}>{children}</h2>; },
+      p: (props) => { const { children, rest } = filterMotionProps(props); return <p {...rest}>{children}</p>; },
+    },
+    AnimatePresence: ({ children }) => <>{children}</>,
+  };
+});
 
 // ── Mock lucide-react ──
 vi.mock('lucide-react', () => ({
@@ -55,6 +57,7 @@ vi.mock('lucide-react', () => ({
   Zap: (props) => <span data-testid="icon-zap" />,
   Camera: (props) => <span data-testid="icon-camera" />,
   Lock: (props) => <span data-testid="icon-lock" />,
+  ChevronUp: (props) => <span data-testid="icon-chevron-up" />,
 }));
 
 // ── Mock @famililook/shared/icons ──
@@ -206,7 +209,7 @@ describe('Regression: All 8 componentMap entries render without crash', () => {
   it('ChemistryLabel renders the chemistry label text', () => {
     renderStory();
     expect(screen.getByText('Complementary Pair')).toBeInTheDocument();
-    expect(screen.getByText('Your Chemistry')).toBeInTheDocument();
+    expect(screen.getByText('Different in all the right ways.')).toBeInTheDocument();
   });
 
   it('FeatureBreakdown renders all 8 feature rows', () => {
@@ -237,11 +240,10 @@ describe('Regression: All 8 componentMap entries render without crash', () => {
     expect(screen.getByText(/complement each other/)).toBeInTheDocument();
   });
 
-  it('ScienceExplainer renders static content', () => {
+  it('SocialProof renders live counter and rarity teaser', () => {
     renderStory();
-    expect(screen.getByText('The Science')).toBeInTheDocument();
-    expect(screen.getByText('How We Compare')).toBeInTheDocument();
-    expect(screen.getByText(/60% structural similarity/)).toBeInTheDocument();
+    expect(screen.getByText('comparisons today')).toBeInTheDocument();
+    expect(screen.getByText('Your match is rarer than you think.')).toBeInTheDocument();
   });
 
   it('RareStat renders match count and rarity stat', () => {
@@ -280,8 +282,8 @@ describe('Regression: All 8 componentMap entries render without crash', () => {
 
   it('DuoUpgrade renders upsell content', () => {
     renderStory();
-    expect(screen.getByText('Try Duo Mode')).toBeInTheDocument();
-    expect(screen.getByText('Coming with Plus')).toBeInTheDocument();
+    expect(screen.getByText('See their face when the score drops.')).toBeInTheDocument();
+    expect(screen.getByText('Get Plus')).toBeInTheDocument();
   });
 
   it('FeatureBreakdown handles undefined feature_comparisons', () => {

@@ -284,6 +284,8 @@ export default function SoloPage() {
                 results={results}
                 nameA={userName || undefined}
                 onReset={handleReset}
+                photoA={photoA}
+                photoB={photoB}
               />
               {/* Share + Challenge buttons */}
               <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
