@@ -305,6 +305,7 @@ export default function ResultsStory({ results, nameA, onReset }) {
           productId="familimatch"
           cardProps={{ results, displayA, displayB, onReset }}
           onComplete={() => {}}
+          height="calc(100dvh - 92px)"
         />
         {/* Action buttons below journey */}
         <div className="flex items-center justify-center gap-3 mt-4">
