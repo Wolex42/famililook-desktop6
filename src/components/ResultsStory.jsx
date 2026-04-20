@@ -598,14 +598,13 @@ export default function ResultsStory({ results, nameA, onReset, photoA, photoB }
 
   if (USE_SHARED_JOURNEY) {
     return (
-      <div style={{ backgroundColor: '#0A0A0F' }}>
+      <div style={{ backgroundColor: '#0A0A0F', height: 'calc(100dvh - 140px)', maxHeight: 'calc(100vh - 140px)', overflow: 'hidden' }}>
         <SwipeJourney
           cards={familimatchJourney}
           componentMap={COMPONENT_MAP}
           productId="familimatch"
           cardProps={{ results, displayA, displayB, onReset, photoA, photoB }}
           onComplete={() => {}}
-          height="calc(100dvh - 92px)"
         />
         {/* Action buttons below journey */}
         <div className="flex items-center justify-center gap-3 mt-4">

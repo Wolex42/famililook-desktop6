@@ -460,18 +460,17 @@ describe('Regression: ResultsStory passes height to SwipeJourney', () => {
     capturedSwipeJourneyProps = null;
   });
 
-  it('SwipeJourney receives a height prop', () => {
+  it('SwipeJourney fills its parent container (height managed by wrapper div)', () => {
     renderStory();
     expect(capturedSwipeJourneyProps).not.toBeNull();
-    expect(capturedSwipeJourneyProps.height).toBeDefined();
-    expect(typeof capturedSwipeJourneyProps.height).toBe('string');
+    // Height is now on the wrapper div, not passed as prop — SwipeJourney defaults to 100%
+    expect(capturedSwipeJourneyProps.height).toBeUndefined();
   });
 
-  it('height prop contains a CSS value (not empty)', () => {
+  it('SwipeJourney does not receive viewport-based height (parent controls sizing)', () => {
     renderStory();
-    expect(capturedSwipeJourneyProps.height.length).toBeGreaterThan(0);
-    // Should be a calc() or vh/dvh value
-    expect(capturedSwipeJourneyProps.height).toMatch(/calc|vh|dvh|px/);
+    // No height prop means SwipeJourney uses its default '100%' to fill the wrapper
+    expect(capturedSwipeJourneyProps.height).toBeUndefined();
   });
 
   it('SwipeJourney receives productId="familimatch"', () => {
