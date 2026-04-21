@@ -5,6 +5,19 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-21 — Sprint E5b: wire shared ErrorToast (0.9.9)
+
+Replaced local ErrorToast import in App.jsx with @famililook/shared/components/ErrorToast.
+Passes `bus={localBus}` prop because d6's AppErrorBus is a local fork (not a shared re-export like d2).
+Without the prop, shared ErrorToast would subscribe to the shared bus instance while d6's report()
+calls land on the local instance — silent zero-toast regression. Prop is the contract boundary
+until a future sprint migrates d6's AppErrorBus to a shared re-export.
+
+Legacy src/components/ui/ErrorToast.jsx remains on disk (strangler-fig, cleanup in later sprint).
+Tests: 106/106 unit + 14/14 E2E. Build pass.
+
+---
+
 ### 2026-04-21 — P1 fix: bump @famililook/shared pin to ^0.9.8
 
 Issue: Vercel build failed — "Missing ./utils/portalTransition specifier in @famililook/shared".

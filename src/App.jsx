@@ -2,7 +2,8 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ConsentProvider } from './state/ConsentContext';
 import { MatchProvider } from './state/MatchContext';
-import ErrorToast from './components/ui/ErrorToast';
+import ErrorToast from '@famililook/shared/components/ErrorToast';
+import * as localBus from './infrastructure/AppErrorBus';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const SoloPage    = lazy(() => import('./pages/SoloPage'));
@@ -47,7 +48,7 @@ export default function App() {
               <Route path="/challenge/:id" element={<ChallengePage />} />
             </Routes>
           </Suspense>
-          <ErrorToast />
+          <ErrorToast bus={localBus} />
         </MatchProvider>
       </ConsentProvider>
     </BrowserRouter>
