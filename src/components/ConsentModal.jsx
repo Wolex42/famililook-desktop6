@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ShieldCheck } from 'lucide-react';
 import { useConsent } from '../state/ConsentContext';
-import { useFocusTrap } from '../hooks/useFocusTrap.js';
+import { useFocusTrap } from '@famililook/shared/hooks/useFocusTrap';
 
 /**
  * ConsentModal — full-screen BIPA consent overlay for FamiliMatch.
