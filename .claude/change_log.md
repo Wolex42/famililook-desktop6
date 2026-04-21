@@ -5,6 +5,16 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-21 — P1 fix: bump @famililook/shared pin to ^0.9.8
+
+Issue: Vercel build failed — "Missing ./utils/portalTransition specifier in @famililook/shared".
+Root cause: package.json pinned ^0.9.0, lockfile stuck at 0.9.0. New subpath exports (portalTransition, createAnalytics, useFocusTrap) were added in shared@0.9.7.
+Fix: Bumped @famililook/shared pin 0.9.0 → 0.9.8, regenerated package-lock.json.
+Note: src/utils/portalTransition.js was deleted locally (migrated to shared).
+Tests: npm run test:run pass (106/106), npm run build pass.
+
+---
+
 ## 2026-04-18 — Sprint X Phase X5: Swipe Journey System Integration (CR-X5-D6)
 
 **Risk Tier:** P1 (replaces core results presentation — feature-flagged rollback)
