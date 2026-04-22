@@ -191,8 +191,21 @@ function PhotoUploadShared({ label, onPhotoReady }) {
   const processFile = useCallback((file) => {
     if (!file || !file.type.startsWith('image/')) return;
     setQuickFile(file);
-    pipe.submit(file);
-  }, [pipe]);
+    if (consent?.bipaConsented) {
+      // Full pipeline: validate → compress → detect → picker/snip
+      pipe.submit(file);
+    } else {
+      // Pre-consent: legacy fallback. Read as dataUrl, render preview, emit to parent.
+      // /detect would 403. Consent modal is triggered later on Compare click.
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        setPreview(dataUrl);
+        onPhotoReady(dataUrl);
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [pipe, consent?.bipaConsented, onPhotoReady]);
 
   const handleChange = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -262,10 +275,11 @@ function PhotoUploadShared({ label, onPhotoReady }) {
 
   // Zero-face → offer snip
   useEffect(() => {
+    if (!consent?.bipaConsented) return;           // no detect happens pre-consent, so this guard is belt+braces
     if (pipe.status === 'zero_faces' && !pipe.modalFlags.snipOpen) {
       pipe.openSnip();
     }
-  }, [pipe.status, pipe.modalFlags.snipOpen, pipe]);
+  }, [pipe.status, pipe.modalFlags.snipOpen, pipe, consent?.bipaConsented]);
 
   // Preview state
   if (preview) {

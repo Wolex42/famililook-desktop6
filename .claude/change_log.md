@@ -5,6 +5,22 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-22 — P1 hotfix: defer /detect until BIPA consent granted
+
+Silent upload failure for first-time users. d6 UX has consent-after-upload
+but shared pipeline was calling /detect on file select → 403 auth_required
+→ pipe.status='error' → no preview, no onPhotoReady, nothing happens.
+
+Fix (PhotoUpload.jsx only, no shared package change):
+- processFile branches on consent.bipaConsented. Pre-consent: legacy
+  FileReader → preview + onPhotoReady (no /detect call). Post-consent:
+  full pipe.submit() pipeline.
+- zero_faces auto-snip useEffect guards on consent too (belt+braces).
+
+Tests: 106+ pass. Build pass.
+
+---
+
 ### 2026-04-22 — Sprint E7 Wave 2 — bump shared pin to rc.2 (P1 follow-up)
 
 Bumped `@famililook/shared` pin `0.10.0-rc.1` → `0.10.0-rc.2` after
