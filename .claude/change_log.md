@@ -5,6 +5,30 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-22 — Sprint E7 Wave 2: wire shared upload pipeline rc.1
+
+Bumped `@famililook/shared` pin `^0.9.9` → `0.10.0-rc.1` (exact pre-release pin;
+caret on pre-release does NOT span minors in npm).
+
+`src/components/PhotoUpload.jsx` refactored as strangler-fig wrapper. Flag
+`VITE_USE_SHARED_UPLOAD_PIPELINE=false` in prod on first deploy (safe no-op);
+toggle to `true` in Vercel after CEO verification. Dev/staging default true.
+
+Shared branch uses `useUploadPipeline` + `FacePickerModal` + `FaceSnipModal`
+from `@famililook/shared/upload`. Per CEO Option C: per-participant upload
+only. WebSocket room logic, MatchContext, multiplayer room flow UNTOUCHED.
+
+Local AppErrorBus fork still passed as `errorBus` prop (unchanged).
+Legacy implementation preserved behind flag for 72h soak strangler-fig.
+
+Parent contract `onPhotoReady(dataUrl: string)` preserved in both branches —
+shared branch converts processed File → dataUrl via `fileToDataUrl` before
+emit so SoloPage/RoomPage/ChallengePage consumers do NOT change.
+
+Tests: 106/106 unit, 14/14 E2E pass. Build pass.
+
+---
+
 ### 2026-04-21 — Sprint E5b: wire shared ErrorToast (0.9.9)
 
 Replaced local ErrorToast import in App.jsx with @famililook/shared/components/ErrorToast.
