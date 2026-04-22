@@ -5,6 +5,26 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-22 — Sprint E7 Wave 2 — bump shared pin to rc.2 (P1 follow-up)
+
+Bumped `@famililook/shared` pin `0.10.0-rc.1` → `0.10.0-rc.2` after
+P1 production failure on familimatch.com today. Root cause was in shared
+(field name mismatch + render loop), not in the d6 wrapper. Wrapper
+unchanged.
+
+Flag defaults UNCHANGED: `.env.production=false` (legacy path runs in prod
+by default). CEO flips Vercel dashboard env var to `true` + redeploy to
+test rc.2 in production when ready.
+
+Validation:
+- shared@0.10.0-rc.2 installed, `lib/upload/useFaceValidation.js` contains `formData.append('file'`
+- d6 unit tests: 106/106 passing
+- d6 build: OK
+- d6 E2E: 14/14 passing
+- No source code changes in d6 (pin-only bump)
+
+---
+
 ### 2026-04-22 — Sprint E7 Wave 2: wire shared upload pipeline rc.1
 
 Bumped `@famililook/shared` pin `^0.9.9` → `0.10.0-rc.1` (exact pre-release pin;
