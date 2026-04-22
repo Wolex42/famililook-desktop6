@@ -5,6 +5,32 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-22 — P1 hotfix: OnboardingScreen overlay no longer intercepts upload taps
+
+InPrivate / fresh-session users saw upload tiles on /solo but taps did
+nothing — OnboardingScreen's fixed inset-0 z-50 overlay was absorbing
+pointer events. 6 parallel investigation agents confirmed via Playwright
+repro that `onClick` never fired. This was pre-existing but masked by
+localStorage state from returning users.
+
+Root cause: SoloPage.jsx rendered <OnboardingScreen> whenever
+`!userName` (sessionStorage empty). The overlay uses the same dark
+gradient as the page beneath, so users perceived the upload tiles but
+every tap hit the transparent-looking overlay form instead.
+
+Fix (SoloPage.jsx only, OnboardingScreen left in place unused):
+- Removed OnboardingScreen import + <AnimatePresence> render block.
+- Removed `showOnboarding` state.
+- Added inline "Your name" input next to the Photo A tile, mirroring
+  the existing "Their name" pattern for Photo B. Uses MatchContext's
+  `setUserName` — same persistence semantics as before.
+- `userName` is already fallback-guarded at every use site
+  (`userName || 'You'`, `userName || 'Photo A'`) — removal is safe.
+
+Tests: 106 pass. Build pass. New bundle: index-DI-X8f2D.js.
+
+---
+
 ### 2026-04-22 — P1 hotfix: defer /detect until BIPA consent granted
 
 Silent upload failure for first-time users. d6 UX has consent-after-upload

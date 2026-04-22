@@ -9,7 +9,6 @@ import { useConsent } from '../state/ConsentContext';
 import { useMatch } from '../state/MatchContext';
 import PhotoUpload from '../components/PhotoUpload';
 import ConsentModal from '../components/ConsentModal';
-import OnboardingScreen from '../components/OnboardingScreen';
 import FeatureScanAnimation from '../components/FeatureScanAnimation';
 import ResultsStory from '../components/ResultsStory';
 import { compareSolo } from '../api/matchClient';
@@ -18,11 +17,10 @@ import { analytics } from '../utils/analytics';
 export default function SoloPage() {
   const navigate = useNavigate();
   const { consent } = useConsent();
-  const { userName } = useMatch();
+  const { userName, setUserName } = useMatch();
   const [photoA, setPhotoA] = useState(null);
   const [photoB, setPhotoB] = useState(null);
   const [showConsent, setShowConsent] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(!userName);
   const [analyzing, setAnalyzing] = useState(false);
   const [progress, setProgress] = useState(null);
   const [results, setResults] = useState(null);
@@ -113,13 +111,6 @@ export default function SoloPage() {
 
   return (
     <>
-      {/* Onboarding overlay */}
-      <AnimatePresence>
-        {showOnboarding && (
-          <OnboardingScreen onComplete={() => setShowOnboarding(false)} />
-        )}
-      </AnimatePresence>
-
       <div
         className="min-h-screen flex flex-col items-center px-4 py-8 relative"
         style={{ background: 'linear-gradient(180deg, #0A0A0F 0%, #0D0820 60%, #0A0A0F 100%)' }}
@@ -187,7 +178,16 @@ export default function SoloPage() {
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <PhotoUpload label={userName || 'Photo A'} onPhotoReady={setPhotoA} />
+                  <div className="flex flex-col gap-2">
+                    <PhotoUpload label={userName || 'Photo A'} onPhotoReady={setPhotoA} />
+                    <input
+                      type="text"
+                      placeholder="Your name"
+                      value={userName || ''}
+                      onChange={(e) => setUserName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-gray-500 focus:outline-none focus:border-blue-500 min-h-[44px]"
+                    />
+                  </div>
                   <div className="flex flex-col gap-2">
                     <PhotoUpload label={personBName || 'Photo B'} onPhotoReady={setPhotoB} />
                     <input
