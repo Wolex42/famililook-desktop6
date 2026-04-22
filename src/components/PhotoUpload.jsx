@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Camera, RefreshCw } from 'lucide-react';
 import { usePhotoQuality, PhotoQualityRing, PHOTO_QUALITY_COPY } from '@famililook/shared/photo';
 import {
@@ -19,21 +19,102 @@ import { API_BASE, API_KEY } from '../utils/config';
  *   label:        string                     — label shown above the drop zone (e.g. "Photo A")
  *   onPhotoReady: (dataUrl: string) => void  — called with base64 data URL when a photo is selected
  *
- * Strangler-fig wrapper (Sprint E7 Wave 2, 2026-04-22):
- *   - Flag VITE_USE_SHARED_UPLOAD_PIPELINE=true → shared pipeline branch (face detect + picker + snip)
- *   - Flag false/unset → legacy branch (prod default, no-op over existing behaviour)
- *   - Parent contract `onPhotoReady(dataUrl: string)` preserved in BOTH branches.
+ * Sprint E7 Wave 2 robust fix (2026-04-22):
+ *   Three-component split + ErrorBoundary. Fresh-session users (empty
+ *   localStorage, consent not yet granted) crashed silently because
+ *   useUploadPipeline was mounting unconditionally inside PhotoUploadShared.
+ *   Some state in its initial return was undefined at first render,
+ *   JSX prop access threw, and the whole tile vanished with no toast.
+ *
+ *   New shape:
+ *     - PhotoUpload (dispatcher)           — picks branch based on flag + consent
+ *     - PipelineErrorBoundary              — catches any throw, silently falls back
+ *     - PhotoUploadLegacyFlow              — pure FileReader, no pipeline hook
+ *     - PhotoUploadPipelineFlow            — full shared pipeline, only mounts when
+ *                                            bipaConsented === true (hook state is
+ *                                            deterministic once consent is known).
+ *
+ *   Flags:
+ *     - VITE_USE_SHARED_UPLOAD_PIPELINE=false    → always Legacy (prod default pre-E7)
+ *     - VITE_USE_SHARED_UPLOAD_PIPELINE=true     → Pipeline ONLY after consent granted,
+ *                                                  Legacy for pre-consent state
  */
 
 const USE_SHARED = import.meta.env.VITE_USE_SHARED_UPLOAD_PIPELINE === 'true';
 
+// ============================================================================
+// PhotoUpload — top-level dispatcher
+// ============================================================================
 export default function PhotoUpload(props) {
-  if (USE_SHARED) return <PhotoUploadShared {...props} />;
-  return <PhotoUploadLegacy {...props} />;
+  const { consent } = useConsent();
+  const bipaGranted = !!consent?.bipaConsented;
+
+  // If flag is off, always use legacy. If flag is on, pick based on consent.
+  const useShared = USE_SHARED && bipaGranted;
+
+  if (useShared) {
+    // Wrap in ErrorBoundary so any pipeline hook throw falls back to Legacy
+    // without losing the user's file selection capability.
+    return (
+      <PipelineErrorBoundary fallback={<PhotoUploadLegacyFlow {...props} />}>
+        <PhotoUploadPipelineFlow {...props} />
+      </PipelineErrorBoundary>
+    );
+  }
+
+  return <PhotoUploadLegacyFlow {...props} />;
 }
 
-// ─── Legacy implementation (unchanged from pre-E7-Wave-2) ──────────────
-function PhotoUploadLegacy({ label, onPhotoReady }) {
+// ============================================================================
+// PipelineErrorBoundary — catches any throw in PipelineFlow, falls back silently
+// ============================================================================
+class PipelineErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error, info) {
+    try {
+      // Report via localErrorBus if available; never crash if reporting itself fails.
+      if (localErrorBus && typeof localErrorBus.report === 'function') {
+        localErrorBus.report({
+          message: 'Upload pipeline threw, falling back to legacy flow.',
+          context: 'PhotoUpload.PipelineErrorBoundary',
+          severity: 'high',
+          code: 'PIPELINE_FALLBACK',
+          cause: error,
+          meta: { componentStack: info?.componentStack },
+        });
+      } else if (typeof window !== 'undefined' && window.__reportErrorBus) {
+        window.__reportErrorBus({
+          severity: 'high',
+          code: 'PIPELINE_FALLBACK',
+          message: error?.message,
+          context: info,
+        });
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn('[PhotoUpload] pipeline flow errored, falling back to legacy:', error?.message);
+      }
+    } catch {
+      // swallow — the fallback rendering is the important thing
+    }
+  }
+
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
+
+// ============================================================================
+// PhotoUploadLegacyFlow — byte-for-byte equivalent of pre-E7-Wave-2 PhotoUploadLegacy
+// ============================================================================
+function PhotoUploadLegacyFlow({ label, onPhotoReady }) {
   const [preview, setPreview] = useState(null);
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
@@ -148,9 +229,9 @@ function PhotoUploadLegacy({ label, onPhotoReady }) {
   );
 }
 
-// ─── Shared pipeline branch ────────────────────────────────────────────
-// Uses @famililook/shared/upload: useUploadPipeline + FacePickerModal + FaceSnipModal.
-// Preserves parent contract: emits dataUrl string via onPhotoReady.
+// ============================================================================
+// Shared pipeline helpers
+// ============================================================================
 
 function buildMatchHeaders() {
   // Mirrors getBiometricHeaders() from matchClient.js (do not refactor matchClient in this sprint).
@@ -163,12 +244,17 @@ function buildMatchHeaders() {
   return headers;
 }
 
-function PhotoUploadShared({ label, onPhotoReady }) {
+// ============================================================================
+// PhotoUploadPipelineFlow — shared-powered, only mounted when consent granted
+// ============================================================================
+function PhotoUploadPipelineFlow({ label, onPhotoReady }) {
   const [preview, setPreview] = useState(null);
   const [dragging, setDragging] = useState(false);
   const [quickFile, setQuickFile] = useState(null); // fed to usePhotoQuality pre-pipeline
   const inputRef = useRef(null);
 
+  // Consent is guaranteed true here (dispatcher only mounts us when bipaGranted).
+  // We still read it so downstream modals/headers stay in sync if consent flips.
   const { consent } = useConsent();
 
   const pipe = useUploadPipeline({
@@ -184,6 +270,11 @@ function PhotoUploadShared({ label, onPhotoReady }) {
     multiFacePolicy: 'auto-open-picker',
   });
 
+  // Defensive fallback for modalFlags — pipeline hook should always return
+  // this shape, but the ErrorBoundary only catches throws, not undefined access
+  // during JSX render. Belt-and-braces.
+  const modalFlags = pipe.modalFlags || { pickerOpen: false, snipOpen: false, groupAssignOpen: false };
+
   // X2 — photo quality check (null adapter: canvas checks only)
   const { score, grade, suggestion, loading } = usePhotoQuality(quickFile, { faceDetector: null });
   const suggestionText = suggestion ? PHOTO_QUALITY_COPY[suggestion] : null;
@@ -191,21 +282,10 @@ function PhotoUploadShared({ label, onPhotoReady }) {
   const processFile = useCallback((file) => {
     if (!file || !file.type.startsWith('image/')) return;
     setQuickFile(file);
-    if (consent?.bipaConsented) {
-      // Full pipeline: validate → compress → detect → picker/snip
-      pipe.submit(file);
-    } else {
-      // Pre-consent: legacy fallback. Read as dataUrl, render preview, emit to parent.
-      // /detect would 403. Consent modal is triggered later on Compare click.
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const dataUrl = e.target.result;
-        setPreview(dataUrl);
-        onPhotoReady(dataUrl);
-      };
-      reader.readAsDataURL(file);
-    }
-  }, [pipe, consent?.bipaConsented, onPhotoReady]);
+    // Consent guaranteed true at this point (dispatcher only mounts us then).
+    // Always run the full pipeline — no consent branch needed here anymore.
+    pipe.submit(file);
+  }, [pipe]);
 
   const handleChange = useCallback((e) => {
     const file = e.target.files?.[0];
@@ -231,7 +311,7 @@ function PhotoUploadShared({ label, onPhotoReady }) {
   const handleReset = useCallback(() => {
     setPreview(null);
     setQuickFile(null);
-    pipe.reset();
+    pipe.reset?.();
     if (inputRef.current) inputRef.current.value = '';
   }, [pipe]);
 
@@ -275,11 +355,11 @@ function PhotoUploadShared({ label, onPhotoReady }) {
 
   // Zero-face → offer snip
   useEffect(() => {
-    if (!consent?.bipaConsented) return;           // no detect happens pre-consent, so this guard is belt+braces
-    if (pipe.status === 'zero_faces' && !pipe.modalFlags.snipOpen) {
-      pipe.openSnip();
+    if (!consent?.bipaConsented) return;
+    if (pipe.status === 'zero_faces' && !modalFlags.snipOpen) {
+      pipe.openSnip?.();
     }
-  }, [pipe.status, pipe.modalFlags.snipOpen, pipe, consent?.bipaConsented]);
+  }, [pipe.status, modalFlags.snipOpen, pipe, consent?.bipaConsented]);
 
   // Preview state
   if (preview) {
@@ -307,9 +387,9 @@ function PhotoUploadShared({ label, onPhotoReady }) {
           Change
         </button>
 
-        {pipe.modalFlags.pickerOpen && (
+        {modalFlags.pickerOpen && (
           <FacePickerModal
-            open={pipe.modalFlags.pickerOpen}
+            open={modalFlags.pickerOpen}
             faces={pipe.faces}
             previewUrl={pipe.previewUrl}
             imageWidth={pipe.imageWidth}
@@ -319,9 +399,9 @@ function PhotoUploadShared({ label, onPhotoReady }) {
             onCancel={() => pipe.cancelModal('picker')}
           />
         )}
-        {pipe.modalFlags.snipOpen && (
+        {modalFlags.snipOpen && (
           <FaceSnipModal
-            open={pipe.modalFlags.snipOpen}
+            open={modalFlags.snipOpen}
             previewUrl={pipe.previewUrl}
             imageWidth={pipe.imageWidth}
             imageHeight={pipe.imageHeight}
@@ -373,9 +453,9 @@ function PhotoUploadShared({ label, onPhotoReady }) {
         className="hidden"
       />
 
-      {pipe.modalFlags.pickerOpen && (
+      {modalFlags.pickerOpen && (
         <FacePickerModal
-          open={pipe.modalFlags.pickerOpen}
+          open={modalFlags.pickerOpen}
           faces={pipe.faces}
           previewUrl={pipe.previewUrl}
           imageWidth={pipe.imageWidth}
@@ -385,9 +465,9 @@ function PhotoUploadShared({ label, onPhotoReady }) {
           onCancel={() => pipe.cancelModal('picker')}
         />
       )}
-      {pipe.modalFlags.snipOpen && (
+      {modalFlags.snipOpen && (
         <FaceSnipModal
-          open={pipe.modalFlags.snipOpen}
+          open={modalFlags.snipOpen}
           previewUrl={pipe.previewUrl}
           imageWidth={pipe.imageWidth}
           imageHeight={pipe.imageHeight}

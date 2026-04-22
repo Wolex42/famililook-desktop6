@@ -5,6 +5,28 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-22 — E7 Wave 2 robust fix: 3-component split + ErrorBoundary (debug-e7-preview)
+
+Root cause of today's prod failures: PhotoUploadShared mounted
+useUploadPipeline unconditionally, causing silent render failure when
+hook state was incomplete for fresh-session users.
+
+Fix: PhotoUpload now dispatches to PhotoUploadLegacyFlow (pure FileReader,
+no hook) by default. Only renders PhotoUploadPipelineFlow when consent is
+granted AND flag=true, wrapped in a class-component ErrorBoundary that
+falls back to Legacy on any throw.
+
+New integration test: PhotoUploadIntegration.test.jsx covers fresh-session
+upload without /detect call — the class of failure today's tests missed.
+
+Branch: debug-e7-preview (not main). Vercel Preview URL generated for
+CEO device test before any main promotion.
+
+Tests: 109 pass (was 106, +3 integration). Build pass. New bundle:
+PhotoUpload-Bp14G2No.js.
+
+---
+
 ### 2026-04-22 — P1 hotfix: OnboardingScreen overlay no longer intercepts upload taps
 
 InPrivate / fresh-session users saw upload tiles on /solo but taps did
