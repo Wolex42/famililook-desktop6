@@ -325,37 +325,22 @@ export default function ChallengePage() {
                 )}
               </div>
 
+              {/* CRITICAL: deep-link forward primitive — do NOT delete (see SPEC_A_HOTFIX_VISUAL_FIX_MOBILE_UX_ADDENDUM_2026_04_25.md §1).
+                  ChallengePage recipients arrive via external link with no app-internal history.
+                  Removing "Challenge Someone Else" leaves browser-back as the only exit,
+                  which on iOS Safari can close the tab (history.length === 1). See FM-X5-10. */}
               <ResultsStory
                 results={results}
                 nameA={challenge.name}
                 onReset={handleReset}
+                extraAction={{
+                  label: 'Challenge Someone Else 🎯',
+                  onClick: () => navigate('/'),
+                }}
               />
-
-              {/* Share + Challenge loop */}
-              <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                <button
-                  onClick={() => setShowShare(true)}
-                  style={{
-                    padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
-                    background: FAMILIMATCH_GRADIENT,
-                    border: 'none', color: '#fff', fontSize: 15, fontWeight: 700,
-                    cursor: 'pointer', minHeight: 44,
-                  }}
-                >
-                  Share Your Score
-                </button>
-                <button
-                  onClick={() => navigate('/')}
-                  style={{
-                    padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
-                    background: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)',
-                    fontSize: 15, fontWeight: 600, cursor: 'pointer', minHeight: 44,
-                  }}
-                >
-                  Challenge Someone Else 🎯
-                </button>
-              </div>
+              {/* "Share Your Score" removed (A-HOTFIX 2026-04-25): duplicate of ShareCardSlide.
+                  "Challenge Someone Else" lifted into ResultsStory fixed action bar via extraAction.
+                  setShowShare + ShareCard modal kept untouched. */}
             </motion.div>
           )}
 

@@ -7,10 +7,11 @@
  * No consumer changes required for the flag.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Home, RotateCcw, Users, Sparkles, FlaskConical, ChevronUp, Zap } from 'lucide-react';
+import { report as reportError } from '../infrastructure/AppErrorBus';
 import { SharpIcon, featureIconMap } from '@famililook/shared/icons';
 import { CelebrationBurst, StatHighlight } from '@famililook/shared/rewards';
 import { SwipeJourney, familimatchJourney } from '@famililook/shared/journey';
@@ -297,95 +298,51 @@ function SharedFeatures({ results, displayA, displayB }) {
   );
 }
 
-function SocialProof() {
-  const BASELINE = 2847;
-  const [count, setCount] = useState(0);
-  const [targetCount, setTargetCount] = useState(BASELINE);
-  const [entered, setEntered] = useState(false);
-  const [shimmerDone, setShimmerDone] = useState(false);
+function SocialProof({ results }) {
+  // Variant 2 — real "N of 8 features in common" from contract-frozen compare_faces.v1 field.
+  // CEO-approved copy (locked 2026-04-25). Three branches:
+  //   Default (2 ≤ N ≤ 7): "{N} of 8 features in common."
+  //   Low guard (N ≤ 1):   "Your faces tell a different story." + sub-line
+  //   High edge (N = 8):   "8 of 8 features in common."
+  // N sourced from results.feature_comparisons.filter(c => c.match).length — never fabricated.
+  // No fake counter. No BASELINE. No setTimeout ticks. No invented numbers.
+  const N = (results?.feature_comparisons || []).filter(c => c.match).length;
 
-  // Count-up animation on entry
-  useEffect(() => {
-    setEntered(true);
-    const start = performance.now();
-    const duration = 800;
-    let raf;
-    const tick = (now) => {
-      const elapsed = now - start;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.round(eased * BASELINE));
-      if (progress < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
-
-  // Live tick: +1 every 3-8s
-  useEffect(() => {
-    const tick = () => {
-      setTargetCount(prev => prev + 1);
-      setCount(prev => prev + 1);
-      const next = 3000 + Math.random() * 5000;
-      timer = setTimeout(tick, next);
-    };
-    let timer = setTimeout(tick, 3000 + Math.random() * 5000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Shimmer once after 1.2s
-  useEffect(() => {
-    const t = setTimeout(() => setShimmerDone(true), 3200);
-    return () => clearTimeout(t);
-  }, []);
+  const isLow = N <= 1;
+  const isHigh = N === 8;
 
   return (
     <div style={{
       position: 'absolute', inset: 0,
       background: 'radial-gradient(circle at 50% 50%, rgba(10,132,255,0.08) 0%, transparent 60%), #161828',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      textAlign: 'center', padding: '0 24px', gap: 32,
+      textAlign: 'center', padding: '0 24px', gap: 24,
     }}>
-      {/* Live counter */}
-      <div>
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: entered ? 1 : 0, scale: entered ? 1 : 0.9 }}
-          transition={{ duration: 0.4 }}
-          className="font-black text-white"
-          style={{ fontSize: 28 }}
-        >
-          {count.toLocaleString()}
-        </motion.div>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>
-          comparisons today
-        </p>
-      </div>
-      {/* Rarity teaser with shimmer */}
-      <div style={{ position: 'relative', overflow: 'hidden' }}>
-        <p className="font-semibold" style={{ fontSize: 18, color: 'rgba(255,255,255,0.7)' }}>
-          Your match is rarer than you think.
-        </p>
-        {!shimmerDone && (
-          <motion.div
-            initial={{ x: '-100%' }}
-            animate={{ x: '200%' }}
-            transition={{ duration: 2, ease: 'linear' }}
-            style={{
-              position: 'absolute', top: 0, left: 0, width: '50%', height: '100%',
-              background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent)',
-              pointerEvents: 'none',
-            }}
-          />
-        )}
-      </div>
-      {/* Upward chevron */}
-      <motion.div
-        animate={{ y: [0, -4, 0] }}
-        transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+      {/* Variant 2 headline — real feature-match count */}
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        className="font-black text-white"
+        style={{ fontSize: 28, lineHeight: 1.2, maxWidth: 280 }}
       >
-        <ChevronUp size={16} style={{ color: 'rgba(255,255,255,0.2)' }} />
-      </motion.div>
+        {isHigh
+          ? '8 of 8 features in common.'
+          : isLow
+            ? 'Your faces tell a different story.'
+            : `${N} of 8 features in common.`}
+      </motion.p>
+      {/* Low-guard sub-line — only renders when N ≤ 1 */}
+      {isLow && (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          style={{ fontSize: 15, color: 'rgba(255,255,255,0.5)', maxWidth: 260 }}
+        >
+          Less in the features, more in the chemistry.
+        </motion.p>
+      )}
     </div>
   );
 }
@@ -588,26 +545,140 @@ const COMPONENT_MAP = {
 // ════════════════════════════════════════════
 // Main export — feature flag switch
 // ════════════════════════════════════════════
-export default function ResultsStory({ results, nameA, onReset, photoA, photoB }) {
+export default function ResultsStory({ results, nameA, onReset, photoA, photoB, extraAction }) {
   const navigate = useNavigate();
+  const journeyContainerRef = useRef(null);
+  const chromeBarRef = useRef(null);
+
+  // Refs are declared; chevron visibility — hide after first swipe and on last card
+  const [chevronVisible, setChevronVisible] = useState(true);
+  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+
+  // Chrome measurement — ResizeObserver writes --results-chrome-height to documentElement
+  // so the journey container can subtract the correct chrome height via CSS var().
+  // Only runs inside the USE_SHARED_JOURNEY branch (guard below).
+  useEffect(() => {
+    if (!USE_SHARED_JOURNEY) return;
+    const el = chromeBarRef.current;
+    if (!el) return;
+
+    // Write initial value immediately via getBoundingClientRect
+    const writeHeight = (h) => {
+      try {
+        document.documentElement.style.setProperty('--results-chrome-height', `${Math.round(h)}px`);
+      } catch (cause) {
+        reportError({ severity: 'warn', context: 'ResultsStory:resize-observer', message: 'Failed to write chrome-height var', cause });
+      }
+    };
+
+    writeHeight(el.getBoundingClientRect().height);
+
+    if (typeof window === 'undefined' || !window.ResizeObserver) {
+      // No ResizeObserver support — CSS fallback 140px kicks in. Not an error.
+      return;
+    }
+
+    let pendingRaf = null;
+    const observer = new window.ResizeObserver((entries) => {
+      if (pendingRaf) cancelAnimationFrame(pendingRaf);
+      pendingRaf = requestAnimationFrame(() => {
+        const entry = entries[0];
+        if (!entry) return;
+        const h = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect?.height ?? 0;
+        writeHeight(h);
+      });
+    });
+
+    observer.observe(el, { box: 'border-box' });
+
+    return () => {
+      if (pendingRaf) cancelAnimationFrame(pendingRaf);
+      observer.disconnect();
+      document.documentElement.style.removeProperty('--results-chrome-height');
+    };
+  }, []);
 
   if (!results) return null;
 
   const displayA = nameA || results.name_a || 'Person A';
   const displayB = results.name_b || 'Person B';
 
+  const prefersReducedMotion = typeof window !== 'undefined'
+    && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
   if (USE_SHARED_JOURNEY) {
+    const totalCards = familimatchJourney.length;
+    const isLastCard = currentCardIndex >= totalCards - 1;
+
     return (
-      <div style={{ backgroundColor: '#0A0A0F', height: 'calc(100dvh - 140px)', maxHeight: 'calc(100vh - 140px)', overflow: 'hidden' }}>
-        <SwipeJourney
-          cards={familimatchJourney}
-          componentMap={COMPONENT_MAP}
-          productId="familimatch"
-          cardProps={{ results, displayA, displayB, onReset, photoA, photoB }}
-          onComplete={() => {}}
-        />
-        {/* Action buttons below journey */}
-        <div className="flex items-center justify-center gap-3 mt-4">
+      <>
+        {/* Journey container — full available viewport minus measured chrome */}
+        <div
+          ref={journeyContainerRef}
+          style={{
+            backgroundColor: '#0A0A0F',
+            height: 'calc(100dvh - var(--results-chrome-height, 140px))',
+            maxHeight: 'calc(100dvh - var(--results-chrome-height, 140px))',
+            overflow: 'hidden',
+          }}
+        >
+          <SwipeJourney
+            cards={familimatchJourney}
+            componentMap={COMPONENT_MAP}
+            productId="familimatch"
+            cardProps={{ results, displayA, displayB, onReset, photoA, photoB }}
+            onComplete={() => {}}
+            onCardChange={(index) => {
+              setCurrentCardIndex(index);
+              if (index >= 1) setChevronVisible(false);
+            }}
+          />
+        </div>
+
+        {/* Persistent chevron cue — above the action bar, fades after first swipe */}
+        {chevronVisible && !isLastCard && (
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              bottom: 'calc(env(safe-area-inset-bottom) + var(--results-chrome-height, 140px) + 12px)',
+              zIndex: 25,
+              pointerEvents: 'none',
+            }}
+          >
+            <motion.div
+              animate={prefersReducedMotion ? { y: 0 } : { y: [0, -4, 0] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <ChevronUp size={20} style={{ color: 'rgba(255,255,255,0.55)' }} />
+            </motion.div>
+          </div>
+        )}
+
+        {/* Fixed action bar — lives OUTSIDE the clipped container */}
+        <nav
+          ref={chromeBarRef}
+          aria-label="Results actions"
+          style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 30,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            padding: '12px 16px',
+            paddingBottom: 'calc(12px + env(safe-area-inset-bottom))',
+            background: 'linear-gradient(180deg, rgba(10,10,15,0) 0%, rgba(10,10,15,0.92) 40%, #0A0A0F 100%)',
+            pointerEvents: 'auto',
+          }}
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+        >
           <button
             onClick={() => navigate('/')}
             className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-semibold text-white/60 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 transition-all"
@@ -622,8 +693,25 @@ export default function ResultsStory({ results, nameA, onReset, photoA, photoB }
           >
             <RotateCcw size={16} /> Try Again
           </button>
-        </div>
-      </div>
+          {/* Optional consumer-injected action (e.g. "Challenge Someone Else" on ChallengePage).
+              Pinned signature per GATE_REPORT_A_HOTFIX_v2_2026_04_25.md §1.4:
+                extraAction?: { label: string; onClick: () => void }
+              No variant, no disabled, no aria-label. The third button always uses the same
+              gradient as "Try Again" — consumers do not pick a button colour.
+              Defensive render (FM-X5-09 mitigation): only render when both label is truthy
+              AND onClick is a function. Do NOT wrap onClick in try/catch — would mask real
+              bugs and violate AppErrorBus discipline. */}
+          {extraAction && extraAction.label && typeof extraAction.onClick === 'function' && (
+            <button
+              onClick={extraAction.onClick}
+              className="flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all"
+              style={{ minHeight: 44, background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)' }}
+            >
+              {extraAction.label}
+            </button>
+          )}
+        </nav>
+      </>
     );
   }
 
