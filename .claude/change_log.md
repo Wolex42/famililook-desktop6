@@ -5,6 +5,50 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-25 — A-HOTFIX CI follow-up: Vitest grep flag + shared-journey env (PR #1)
+
+**Risk Tier:** P2 (CI / config only — zero product source touched)
+**Branch:** `hotfix/a-card5-clipping-integrity` (follow-up commit, NOT amend of `a420d8bd`)
+**Approved by:** CEO (session A-HOTFIX-CI-FIX-2026-04-25 spawn brief)
+**Executed by:** FE Lead agent (desktop6)
+**Files touched:** 2 — `.github/workflows/verify.yml`, `vite.config.js` (+ this change_log)
+
+**Description:**
+PR #1 had two failing CI checks. Product code on Vercel preview verified
+correct by CEO device test, so this commit only addresses CI/test config:
+
+1. *Contract Schema Validation job* — workflow ran
+   `npm run test:run -- --grep "contract"`. `--grep` is a Mocha/Jest-CLI
+   flag and was rejected by Vitest 2.x. Replaced with the Vitest-native
+   equivalent `-t "contract"` (testNamePattern). Added `--passWithNoTests`
+   so the job stays green while desktop6 has zero contract-tagged tests
+   (contracts currently validated upstream in famililook-shared / desktop3).
+
+2. *Run unit tests job* — three new `extraAction` tests in
+   `tests/components/ResultsStory.test.jsx` (lines 329, 345, 359) query
+   `role="navigation"` which only renders on the shared-journey path
+   (`VITE_USE_SHARED_JOURNEY === 'true'`). Local passes because the env
+   var is set in shell; CI failed because nothing set it. Belt-and-braces
+   fix: added `test.env.VITE_USE_SHARED_JOURNEY = 'true'` to `vite.config.js`
+   so `npm run test:run` produces identical results in any shell, AND
+   added `env: VITE_USE_SHARED_JOURNEY: 'true'` to the workflow's unit-test
+   and build steps for redundancy.
+
+**Constraint compliance:**
+- No product source modified (ResultsStory.jsx, SoloPage.jsx,
+  ChallengePage.jsx untouched).
+- No test logic modified (queries are correct; only environment wiring fixed).
+- Single follow-up commit, not an amend of `a420d8bd`.
+
+**Verification:**
+- `npm run test:run` (with shell env unset to simulate CI): 119 / 119 PASS.
+- `npm run build`: PASS.
+- `npm run test:run -- -t "contract" --passWithNoTests`: exits 0 (119 skipped).
+
+**Status:** CLOSED pending CI green on PR #1.
+
+---
+
 ### 2026-04-25 — A-HOTFIX v2: FamiliMatch results visual clipping + Card 5 integrity fix (Solo + Challenge)
 
 **Risk Tier:** P1 (production hotfix — visual correctness + dark-pattern integrity)

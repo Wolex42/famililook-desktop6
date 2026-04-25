@@ -28,9 +28,15 @@ jobs:
         run: npm ci
 
       - name: Run unit tests
+        env:
+          # Mirror Vercel prod: render the shared-journey path so
+          # ResultsStory tests (extraAction nav role) match local + prod.
+          VITE_USE_SHARED_JOURNEY: 'true'
         run: npm run test:run
 
       - name: Build
+        env:
+          VITE_USE_SHARED_JOURNEY: 'true'
         run: npm run build
 
   contract-tests:
@@ -51,4 +57,8 @@ jobs:
         run: npm ci
 
       - name: Run contract tests
-        run: npm run test:run -- --grep "contract"
+        # `--grep` is a Mocha/Jest-CLI flag and was rejected by Vitest 2.x.
+        # `-t "contract"` is Vitest's testNamePattern; `--passWithNoTests`
+        # keeps the job green while desktop6 has no contract-tagged tests yet
+        # (contracts currently validated upstream in famililook-shared / desktop3).
+        run: npm run test:run -- -t "contract" --passWithNoTests

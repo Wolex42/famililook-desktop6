@@ -63,6 +63,13 @@ export default defineConfig(({ mode }) => {
       include: ['tests/**/*.test.{ts,tsx,js,jsx}'],
       globals: true,
       css: true,
+      // CI parity: ResultsStory feature flag must be ON for the
+      // shared-journey path (where the new extraAction tests live).
+      // Set in Vercel for prod; mirror it here so `npm run test:run`
+      // produces the same result locally and in CI regardless of shell env.
+      env: {
+        VITE_USE_SHARED_JOURNEY: 'true',
+      },
     },
   };
 });
