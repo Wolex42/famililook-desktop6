@@ -80,6 +80,7 @@ export default function SoloPage() {
     setError(null);
   };
 
+  // TODO(B-apex-share): re-wire from ShareCardSlide — handleCreateChallenge preserved for B sprint
   const handleCreateChallenge = async () => {
     if (!results || !photoA) return;
     setCreatingChallenge(true);
@@ -287,34 +288,9 @@ export default function SoloPage() {
                 photoA={photoA}
                 photoB={photoB}
               />
-              {/* Share + Challenge buttons */}
-              <div style={{ textAlign: 'center', marginTop: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-                <button
-                  onClick={() => setShowShare(true)}
-                  style={{
-                    padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
-                    background: 'linear-gradient(135deg, #0a84ff, #5e5ce6)',
-                    border: 'none', color: '#fff', fontSize: 15, fontWeight: 700,
-                    cursor: 'pointer', minHeight: 44,
-                  }}
-                >
-                  Share Your Score
-                </button>
-                <button
-                  onClick={handleCreateChallenge}
-                  disabled={creatingChallenge}
-                  style={{
-                    padding: '12px 28px', borderRadius: 99, width: '100%', maxWidth: 320,
-                    background: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.8)',
-                    fontSize: 15, fontWeight: 600,
-                    cursor: creatingChallenge ? 'wait' : 'pointer', minHeight: 44,
-                    opacity: creatingChallenge ? 0.6 : 1,
-                  }}
-                >
-                  {creatingChallenge ? 'Creating...' : `Challenge ${results?.name_b || 'a Friend'} 🎯`}
-                </button>
-              </div>
+              {/* Share + Challenge buttons removed (A-HOTFIX 2026-04-25):
+                  duplicate of ShareCardSlide (journey card 7) — contributed ~116pt to clip stack.
+                  Spec V §1a. handleCreateChallenge + ShareCard modal kept for B rewiring below. */}
             </div>
           )}
         </div>

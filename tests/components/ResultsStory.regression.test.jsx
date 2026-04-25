@@ -20,6 +20,11 @@ import { MemoryRouter } from 'react-router-dom';
 // ── Environment ──
 vi.stubEnv('VITE_USE_SHARED_JOURNEY', 'true');
 
+// ── Mock AppErrorBus (imported by ResultsStory for ResizeObserver error routing) ──
+vi.mock('../../src/infrastructure/AppErrorBus', () => ({
+  report: vi.fn(),
+}));
+
 // ── Track SwipeJourney props for assertion ──
 let capturedSwipeJourneyProps = null;
 
@@ -240,10 +245,74 @@ describe('Regression: All 8 componentMap entries render without crash', () => {
     expect(screen.getByText(/complement each other/)).toBeInTheDocument();
   });
 
-  it('SocialProof renders live counter and rarity teaser', () => {
+  // ────────────────────────────────────────────────────────────
+  // Variant 2 branch coverage (CEO-locked wording, Pre-decision A)
+  // Gate report §4.2 — three branches + negative + two boundaries + one edge.
+  // ────────────────────────────────────────────────────────────
+
+  // Helper to build feature_comparisons with exactly N matching features
+  const buildResultsWithN = (n) => ({
+    ...MOCK_RESULTS,
+    feature_comparisons: MOCK_RESULTS.feature_comparisons.map((fc, i) => ({
+      ...fc,
+      match: i < n,
+    })),
+  });
+
+  it('SocialProof renders default branch (2 ≤ N ≤ 7) — N of 8 features in common', () => {
+    // N = 5 — default branch
+    renderStory({ results: buildResultsWithN(5) });
+    expect(screen.getByText('5 of 8 features in common.')).toBeInTheDocument();
+    // No low-guard sub-line
+    expect(screen.queryByText('Less in the features, more in the chemistry.')).toBeNull();
+    // No "different story" headline
+    expect(screen.queryByText('Your faces tell a different story.')).toBeNull();
+  });
+
+  it('SocialProof renders low-guard branch (N ≤ 1) — different-story copy', () => {
+    // N = 1 — low guard
+    renderStory({ results: buildResultsWithN(1) });
+    expect(screen.getByText('Your faces tell a different story.')).toBeInTheDocument();
+    expect(screen.getByText('Less in the features, more in the chemistry.')).toBeInTheDocument();
+    // No literal "1 of 8"
+    expect(screen.queryByText('1 of 8 features in common.')).toBeNull();
+  });
+
+  it('SocialProof renders high-edge branch (N = 8) — 8 of 8 features in common', () => {
+    // N = 8 — high edge
+    renderStory({ results: buildResultsWithN(8) });
+    expect(screen.getByText('8 of 8 features in common.')).toBeInTheDocument();
+    // No low-guard sub-line at high edge
+    expect(screen.queryByText('Less in the features, more in the chemistry.')).toBeNull();
+  });
+
+  it('SocialProof does not render fabricated counter (regression guard)', () => {
+    // Guard against regression of BASELINE = 2847 fake counter (removed 2026-04-25)
     renderStory();
-    expect(screen.getByText('comparisons today')).toBeInTheDocument();
-    expect(screen.getByText('Your match is rarer than you think.')).toBeInTheDocument();
+    expect(screen.queryByText('comparisons today')).toBeNull();
+    expect(screen.queryByText(/2,?847/)).toBeNull();
+    expect(screen.queryByText('Your match is rarer than you think.')).toBeNull();
+  });
+
+  it('SocialProof renders default branch at N=2 (low boundary)', () => {
+    // Confirms Branch 2 (low-guard) does NOT fire at N=2 — only at N ≤ 1
+    renderStory({ results: buildResultsWithN(2) });
+    expect(screen.getByText('2 of 8 features in common.')).toBeInTheDocument();
+    expect(screen.queryByText('Your faces tell a different story.')).toBeNull();
+  });
+
+  it('SocialProof renders default branch at N=7 (high boundary)', () => {
+    // Confirms Branch 3 (high-edge) does NOT fire at N=7 — only at N=8
+    renderStory({ results: buildResultsWithN(7) });
+    expect(screen.getByText('7 of 8 features in common.')).toBeInTheDocument();
+    expect(screen.queryByText('8 of 8 features in common.')).toBeNull();
+  });
+
+  it('SocialProof renders low-guard branch at N=0 (absolute floor)', () => {
+    // Confirms low-guard fires at the absolute floor (N=0 still ≤ 1)
+    renderStory({ results: buildResultsWithN(0) });
+    expect(screen.getByText('Your faces tell a different story.')).toBeInTheDocument();
+    expect(screen.getByText('Less in the features, more in the chemistry.')).toBeInTheDocument();
   });
 
   it('RareStat renders match count and rarity stat', () => {

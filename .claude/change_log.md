@@ -5,6 +5,206 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-25 — A-HOTFIX CI follow-up: Vitest grep flag + shared-journey env (PR #1)
+
+**Risk Tier:** P2 (CI / config only — zero product source touched)
+**Branch:** `hotfix/a-card5-clipping-integrity` (follow-up commit, NOT amend of `a420d8bd`)
+**Approved by:** CEO (session A-HOTFIX-CI-FIX-2026-04-25 spawn brief)
+**Executed by:** FE Lead agent (desktop6)
+**Files touched:** 2 — `.github/workflows/verify.yml`, `vite.config.js` (+ this change_log)
+
+**Description:**
+PR #1 had two failing CI checks. Product code on Vercel preview verified
+correct by CEO device test, so this commit only addresses CI/test config:
+
+1. *Contract Schema Validation job* — workflow ran
+   `npm run test:run -- --grep "contract"`. `--grep` is a Mocha/Jest-CLI
+   flag and was rejected by Vitest 2.x. Replaced with the Vitest-native
+   equivalent `-t "contract"` (testNamePattern). Added `--passWithNoTests`
+   so the job stays green while desktop6 has zero contract-tagged tests
+   (contracts currently validated upstream in famililook-shared / desktop3).
+
+2. *Run unit tests job* — three new `extraAction` tests in
+   `tests/components/ResultsStory.test.jsx` (lines 329, 345, 359) query
+   `role="navigation"` which only renders on the shared-journey path
+   (`VITE_USE_SHARED_JOURNEY === 'true'`). Local passes because the env
+   var is set in shell; CI failed because nothing set it. Belt-and-braces
+   fix: added `test.env.VITE_USE_SHARED_JOURNEY = 'true'` to `vite.config.js`
+   so `npm run test:run` produces identical results in any shell, AND
+   added `env: VITE_USE_SHARED_JOURNEY: 'true'` to the workflow's unit-test
+   and build steps for redundancy.
+
+**Constraint compliance:**
+- No product source modified (ResultsStory.jsx, SoloPage.jsx,
+  ChallengePage.jsx untouched).
+- No test logic modified (queries are correct; only environment wiring fixed).
+- Single follow-up commit, not an amend of `a420d8bd`.
+
+**Verification:**
+- `npm run test:run` (with shell env unset to simulate CI): 119 / 119 PASS.
+- `npm run build`: PASS.
+- `npm run test:run -- -t "contract" --passWithNoTests`: exits 0 (119 skipped).
+
+**Status:** CLOSED pending CI green on PR #1.
+
+---
+
+### 2026-04-25 — A-HOTFIX v2: FamiliMatch results visual clipping + Card 5 integrity fix (Solo + Challenge)
+
+**Risk Tier:** P1 (production hotfix — visual correctness + dark-pattern integrity)
+**Branch:** `hotfix/a-card5-clipping-integrity` (off `main` at `c079bb35`)
+**Approved by:** CEO (consolidation gate v2 signed off 2026-04-25)
+**Spec authors:** Mobile UX Lead (visual + addendum), User Psychology Lead (integrity), Copywriter (Variant 2 wording)
+**Consolidation:** Change Manager — `Agent_1/crew/output/GATE_REPORT_A_HOTFIX_v2_2026_04_25.md` (supersedes v1)
+**Executed by:** FE Lead agent
+**Verified by:** QA Lead agent + CEO physical-device verification (iPhone, including deep-link `/challenge/<id>` test) — pending
+
+**Description:**
+Two distinct defects fixed in one atomic PR on the
+`if (USE_SHARED_JOURNEY)` branch of `src/components/ResultsStory.jsx`,
+applied across two consumer surfaces (`SoloPage`, `ChallengePage`):
+
+1. *Visual clipping* — replaced magic `140px` chrome reservation with a
+   measured `--results-chrome-height` CSS variable (set via ResizeObserver
+   on the chrome bar element); lifted Go Back / Try Again into a
+   `position: fixed` action bar respecting `env(safe-area-inset-bottom)`;
+   added optional `extraAction` prop to ResultsStory so deep-link entry
+   surfaces can inject a third button into the bar; deleted duplicate
+   Share/Challenge stack on `SoloPage.jsx` (lines 290–317); deleted
+   "Share Your Score" on `ChallengePage.jsx` (lines 336–346) and lifted
+   "Challenge Someone Else" into the fixed bar via the new prop;
+   replaced `100vh` with `100dvh`; added persistent chevron gesture cue.
+   ResultsPage explicitly NO-EDIT (benign — single CTA, inherits
+   ResultsStory-internal fixes).
+
+2. *Card 5 integrity violation* — removed fabricated `BASELINE = 2847` +
+   random-interval `setTimeout` `+1` tick (the canonical "fake counter"
+   pattern named verbatim in User Psychology Lead persona charter §4.5
+   and forbidden by §7.1). Replacement: **Variant 2** — real
+   "X of 8 features" callback sourced from
+   `results.feature_comparisons.filter(c => c.match).length` —
+   contract-frozen `compare_faces.v1` field. **Static display** — no
+   count-up animation (the entire timing surface that produced the
+   dark pattern is gone). Three branches:
+   - default (2 ≤ N ≤ 7): "{N} of 8 features in common." (no sub-line)
+   - low guard (N ≤ 1): "Your faces tell a different story." +
+     "Less in the features, more in the chemistry."
+   - high edge (N = 8): "8 of 8 features in common." (no sub-line)
+
+**Persona charter clauses cited:**
+- User Psychology Lead §4.5 (authenticity detector — "fake counters
+  trigger immediate distrust") — DIRECT VIOLATION pre-fix.
+- User Psychology Lead §7.1 (no dark patterns — "off the table
+  permanently") — DIRECT VIOLATION pre-fix.
+- User Psychology Lead §4.3 (trust architecture — fake counter is a
+  benevolence-trust leak).
+- Mobile UX Lead non-negotiable #5 (physical-device verification).
+
+**Pattern introduced:** 2026-04-20 commit `ed83cf48`
+("feat(desktop6): redesign 4 SwipeJourney cards — emotional UX sprint").
+The persona charter was dated 2026-04-14 — six days before the commit;
+the non-negotiable was already in force when the violation landed.
+Surface in next `SESSION_PROTOCOL.md` retrospective alongside the
+2026-04-22 FMEA consolidation gap.
+
+**`extraAction` prop signature (PINNED, gate report §1.4):**
+```ts
+extraAction?: { label: string; onClick: () => void }
+```
+Optional. SoloPage and ResultsPage do not pass it. ChallengePage passes
+`{ label: 'Challenge Someone Else 🎯', onClick: () => navigate('/') }`.
+No `variant`, no `disabled`, no `aria-label`. Defensive render: only
+render the third button when both `label` is truthy AND
+`typeof onClick === 'function'`. Third button always uses the same
+gradient as "Try Again" — consumers do not pick a button colour.
+
+**Files changed:**
+- `famililook-desktop6/src/components/ResultsStory.jsx`
+- `famililook-desktop6/src/pages/SoloPage.jsx`
+- `famililook-desktop6/src/pages/ChallengePage.jsx`
+- `famililook-desktop6/tests/components/ResultsStory.regression.test.jsx`
+  (3 new branch tests + 1 negative-assertion + 2 boundary + 1 floor edge)
+- `famililook-desktop6/tests/components/ResultsStory.test.jsx`
+  (4 new `extraAction` prop tests + 3 chrome-measurement tests)
+- `famililook-desktop6/playwright.config.js` (+5 device projects)
+- `famililook-desktop6/e2e/results-story-visual.spec.js` (new)
+- `famililook-desktop6/e2e/challenge-results-visual.spec.js` (new)
+
+**Files explicitly NOT changed:**
+- `famililook-desktop6/src/pages/ResultsPage.jsx` — benign, no edit
+  (cross-route grep result, recorded in PR description).
+
+**Cross-repo impact:** None.
+- `famililook-shared` not touched. SwipeJourney prop surface unchanged.
+- `compare_faces.v1` schema not touched.
+- `journeyConfig.js` not touched. Card 5 stays in slot 5; only its body
+  changes.
+
+**Tests:**
+- Unit + regression: 106 → 119 (3 new Variant 2 branch tests + 1
+  negative-assertion + 2 boundary tests + 1 floor edge + 4 extraAction
+  prop tests + 3 chrome-measurement tests; 1 prior dark-pattern
+  assertion rewritten). PASS.
+- E2E existing: 14 → 14 (chromium project, all green). PASS.
+- E2E new visual specs (results-story + challenge-results): scaffolded
+  for 5-device matrix; baselines captured during CEO + QA Lead
+  device-matrix verification round (iPhone SE, iPhone 13, iPhone 15
+  Pro Max, Pixel 7, Galaxy S22).
+- Build: PASS.
+- CEO physical-device verification: PENDING (iPhone — bottom content
+  visible across all 8 cards both flows; action bar above safe-area;
+  Variant 2 copy renders all three branches; no fabricated counter;
+  deep-link `/challenge/<id>` shows three buttons; ResultsPage
+  unchanged).
+
+**Patch-count note (FE Lead spawn brief §7 row 5):** `ResultsStory.jsx`
+shows 11 patches in last 30 days (above the "3+ HALT" threshold).
+Surfaced for retrospective: most patches are unrelated (X5 SwipeJourney
+integration, X6 Currency wiring, A1/A2/A3 phases, fusion image fix).
+CEO-signed v2 gate report explicitly authorised this work; no /crew
+redesign route invoked. Recommend QA Lead triage entry for next
+SESSION_PROTOCOL retro.
+
+**Out of scope (separate tickets):**
+- IA-02 + IA-03 (RareStat percentile / rarity copy) — escalated to next
+  sprint.
+- IA-04 (LandingPage decorative "78%" illustration) — backlog.
+- IA-05 (`ScienceExplainer: SocialProof` component-name mismatch) —
+  backlog.
+- B-work: apex share rewiring, peek-of-next-card, 8 → 5 reorder,
+  DuoUpgrade / ChemistryLabel / SocialProof refactor away from
+  `position: absolute` — separate sprint.
+
+**Rollback:**
+`VITE_USE_SHARED_JOURNEY=false` reverts the entire hotfix — both
+visual and integrity changes live inside the
+`if (USE_SHARED_JOURNEY)` branch. `ResultsStory.legacy.jsx` is
+verified not to contain `BASELINE = 2847`.
+
+**FMEA updates (post-merge):**
+- New rows FM-X5-06 (chrome-measurement fallback), FM-X5-07
+  (CSS variable cleanup), FM-X5-08 (Card 5 fake counter — RPN 729,
+  FIXED by this hotfix), FM-X5-09 (extraAction prop seam),
+  FM-X5-10 (ChallengePage deep-link forward primitive — DO NOT delete
+  guard), FM-X5-11 (ResultsPage benign-by-inheritance audit anchor).
+- Note added to FM-X5-04 — underlying height calc now derives from
+  measured CSS variable.
+
+**Specs:**
+- `Agent_1/crew/output/SPEC_A_HOTFIX_VISUAL_FIX_MOBILE_UX_2026_04_25.md`
+- `Agent_1/crew/output/SPEC_A_HOTFIX_VISUAL_FIX_MOBILE_UX_ADDENDUM_2026_04_25.md`
+- `Agent_1/crew/output/SPEC_A_HOTFIX_INTEGRITY_FIX_PSYCHOLOGY_2026_04_25.md`
+- `Agent_1/crew/output/SPEC_A_HOTFIX_COPYWRITER_VARIANT_OPTIONS_2026_04_25.md`
+- `Agent_1/crew/output/GATE_REPORT_A_HOTFIX_v2_2026_04_25.md`
+
+**Discovery reports:**
+- `Agent_1/crew/output/DISCOVERY_REPORT_FAMILIMATCH_RESULTS_MOBILE_UX_2026_04_25.md`
+- `Agent_1/crew/output/DISCOVERY_REPORT_FAMILIMATCH_RESULTS_PSYCHOLOGY_2026_04_25.md`
+
+**Status:** CLOSED (pending CEO physical-device verification + push)
+
+---
+
 ### 2026-04-22 — P1 hotfix: OnboardingScreen overlay no longer intercepts upload taps
 
 InPrivate / fresh-session users saw upload tiles on /solo but taps did

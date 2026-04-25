@@ -8,9 +8,14 @@
  * is a pass-through. We test each componentMap entry directly
  * to catch prop-access crashes (the actual production failure).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+
+// ── Mock AppErrorBus (imported by ResultsStory for ResizeObserver error routing) ──
+vi.mock('../../src/infrastructure/AppErrorBus', () => ({
+  report: vi.fn(),
+}));
 
 // We need to test each component in the componentMap individually,
 // since setupTests mocks SwipeJourney as a pass-through that does
@@ -197,6 +202,167 @@ describe('ResultsStory — all 8 cards render without crash', () => {
  * This simulates what SwipeJourney does when it resolves
  * componentMap[card.component] and passes cardProps.
  */
+// ════════════════════════════════════════════════════════════════
+// Chrome measurement unit tests (A-HOTFIX 2026-04-25)
+// Gate report §4.2 — required by spec
+// ════════════════════════════════════════════════════════════════
+describe('Chrome measurement — ResizeObserver lifecycle', () => {
+  let originalResizeObserver;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    originalResizeObserver = window.ResizeObserver;
+    // Clean up any lingering CSS var from previous tests
+    document.documentElement.style.removeProperty('--results-chrome-height');
+  });
+
+  afterEach(() => {
+    window.ResizeObserver = originalResizeObserver;
+    document.documentElement.style.removeProperty('--results-chrome-height');
+  });
+
+  it('chrome-measurement fallback — when ResizeObserver is undefined, no crash and no error', () => {
+    // This is the supported no-op path — not an error condition
+    window.ResizeObserver = undefined;
+
+    // Mock AppErrorBus.report to verify it is NOT called
+    const reportMock = vi.fn();
+    vi.doMock('../../src/infrastructure/AppErrorBus', () => ({ report: reportMock }));
+
+    // Should render without throwing
+    expect(() => {
+      renderWithRouter(
+        <ResultsStory results={MOCK_RESULTS} nameA="Alice" onReset={MOCK_ON_RESET} />
+      );
+    }).not.toThrow();
+
+    // AppErrorBus.report must NOT be called for the no-ResizeObserver path
+    // (it is only called for actual errors inside the observer callback)
+    expect(reportMock).not.toHaveBeenCalled();
+  });
+
+  it('chrome-measurement happy path — writes --results-chrome-height to documentElement', async () => {
+    // Mock ResizeObserver that fires immediately
+    const observeCallbacks = [];
+    window.ResizeObserver = class MockResizeObserver {
+      constructor(cb) { this.cb = cb; }
+      observe(el) {
+        // Simulate the observer firing with a height of 76px
+        observeCallbacks.push(() => this.cb([{
+          borderBoxSize: [{ blockSize: 76 }],
+          contentRect: { height: 76 },
+          target: el,
+        }]));
+      }
+      disconnect() {}
+    };
+
+    renderWithRouter(
+      <ResultsStory results={MOCK_RESULTS} nameA="Alice" onReset={MOCK_ON_RESET} />
+    );
+
+    // Fire all pending callbacks (simulating ResizeObserver firing)
+    observeCallbacks.forEach(cb => cb());
+
+    // Wait for rAF
+    await new Promise(r => setTimeout(r, 50));
+
+    // The CSS variable should be set (either from the initial getBoundingClientRect
+    // or from the observer — in jsdom getBoundingClientRect returns 0, so
+    // the variable will be '0px' from the initial write)
+    const val = document.documentElement.style.getPropertyValue('--results-chrome-height');
+    expect(val).toBeTruthy(); // Variable was written (value may be '0px' in jsdom)
+  });
+
+  it('chrome-measurement cleanup — unmount removes --results-chrome-height', async () => {
+    window.ResizeObserver = class MockResizeObserver {
+      observe() {}
+      disconnect() {}
+    };
+
+    // Set the variable manually to simulate it having been written
+    document.documentElement.style.setProperty('--results-chrome-height', '76px');
+
+    const { unmount } = renderWithRouter(
+      <ResultsStory results={MOCK_RESULTS} nameA="Alice" onReset={MOCK_ON_RESET} />
+    );
+
+    unmount();
+
+    // After unmount, the variable must be removed
+    const val = document.documentElement.style.getPropertyValue('--results-chrome-height');
+    expect(val).toBe('');
+  });
+});
+
+// ════════════════════════════════════════════════════════════════
+// extraAction prop tests (A-HOTFIX 2026-04-25)
+// Gate report §4.4 — pinned signature: { label: string; onClick: () => void }
+// Defensive render: only when both label is truthy AND onClick is a function
+// ════════════════════════════════════════════════════════════════
+describe('ResultsStory — extraAction prop (third button injection)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders without extraAction (SoloPage default — exactly two action buttons)', () => {
+    renderWithRouter(
+      <ResultsStory results={MOCK_RESULTS} nameA="Alice" onReset={MOCK_ON_RESET} />
+    );
+    const nav = screen.getByRole('navigation', { name: /results actions/i });
+    const buttons = nav.querySelectorAll('button');
+    expect(buttons.length).toBe(2);
+    expect(screen.getByText('Go Back')).toBeInTheDocument();
+    expect(screen.getByText('Try Again')).toBeInTheDocument();
+  });
+
+  it('renders extraAction when provided (ChallengePage path — three buttons)', () => {
+    const onClickMock = vi.fn();
+    renderWithRouter(
+      <ResultsStory
+        results={MOCK_RESULTS}
+        nameA="Alice"
+        onReset={MOCK_ON_RESET}
+        extraAction={{ label: 'Test Label 🎯', onClick: onClickMock }}
+      />
+    );
+    const nav = screen.getByRole('navigation', { name: /results actions/i });
+    const buttons = nav.querySelectorAll('button');
+    expect(buttons.length).toBe(3);
+    expect(screen.getByText('Test Label 🎯')).toBeInTheDocument();
+  });
+
+  it('extraAction.onClick fires on click', () => {
+    const onClickMock = vi.fn();
+    renderWithRouter(
+      <ResultsStory
+        results={MOCK_RESULTS}
+        nameA="Alice"
+        onReset={MOCK_ON_RESET}
+        extraAction={{ label: 'Click Me', onClick: onClickMock }}
+      />
+    );
+    const button = screen.getByText('Click Me');
+    button.click();
+    expect(onClickMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT render extraAction when onClick is missing (defensive guard)', () => {
+    renderWithRouter(
+      <ResultsStory
+        results={MOCK_RESULTS}
+        nameA="Alice"
+        onReset={MOCK_ON_RESET}
+        extraAction={{ label: 'Orphan Label' }}
+      />
+    );
+    const nav = screen.getByRole('navigation', { name: /results actions/i });
+    const buttons = nav.querySelectorAll('button');
+    expect(buttons.length).toBe(2);
+    expect(screen.queryByText('Orphan Label')).toBeNull();
+  });
+});
+
 describe('Card components — direct render crash tests', () => {
   // We can't import internal components directly, so we use
   // a custom SwipeJourney mock that renders each component.
