@@ -15,7 +15,7 @@
     "verify": "npm run lint && npm run test:run && npm run build"
   },
   "dependencies": {
-    "@famililook/shared": "0.10.0-rc.2",
+    "@famililook/shared": "0.10.0-rc.3",
     "canvas-confetti": "^1.9.4",
     "framer-motion": "^12.34.3",
     "html2canvas": "^1.4.1",

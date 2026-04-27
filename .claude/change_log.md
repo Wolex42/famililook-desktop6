@@ -5,6 +5,22 @@ Format: Description / Context / Action (D/C/A)
 
 ---
 
+### 2026-04-27 — Bump @famililook/shared to 0.10.0-rc.3 (logger.info fix; cross-repo coordination)
+
+**Type:** Cross-repo P1 dependency bump (CEO directive 2026-04-27 option B). No runtime impact for desktop6 today (no `logger.info` callers here) but required for consumer pin alignment per CLAUDE.md dependency-version governance.
+
+**Authority:** CEO directive 2026-04-27. Pairs with `famililook-shared` commit `e4a08b4` (adds `logger.info` alias).
+
+**Files changed (2):**
+- `package.json` — `"@famililook/shared": "0.10.0-rc.2"` → `"@famililook/shared": "0.10.0-rc.3"`
+- `package-lock.json` — auto-updated
+
+**No source code changes in this repo.** Pure dependency bump.
+
+**Cross-repo coordination:** desktop2 commit `1cadc90` is the trigger (where the bug fired). desktop4 also bumped (`9e6f354`).
+
+---
+
 ### 2026-04-25 — A-HOTFIX CI follow-up: Vitest grep flag + shared-journey env (PR #1)
 
 **Risk Tier:** P2 (CI / config only — zero product source touched)
@@ -57,7 +73,9 @@ correct by CEO device test, so this commit only addresses CI/test config:
 **Spec authors:** Mobile UX Lead (visual + addendum), User Psychology Lead (integrity), Copywriter (Variant 2 wording)
 **Consolidation:** Change Manager — `Agent_1/crew/output/GATE_REPORT_A_HOTFIX_v2_2026_04_25.md` (supersedes v1)
 **Executed by:** FE Lead agent
-**Verified by:** QA Lead agent + CEO physical-device verification (iPhone, including deep-link `/challenge/<id>` test) — pending
+**Verified by:** QA Lead agent + CEO physical-device verification (iPhone, including deep-link `/challenge/<id>` test)
+**Production SHA:** 0b28f44
+**Deployment ID:** DEBD2xRm9 (verified live on www.familimatch.com 2026-04-25)
 
 **Description:**
 Two distinct defects fixed in one atomic PR on the
@@ -201,7 +219,55 @@ verified not to contain `BASELINE = 2847`.
 - `Agent_1/crew/output/DISCOVERY_REPORT_FAMILIMATCH_RESULTS_MOBILE_UX_2026_04_25.md`
 - `Agent_1/crew/output/DISCOVERY_REPORT_FAMILIMATCH_RESULTS_PSYCHOLOGY_2026_04_25.md`
 
+<<<<<<< HEAD
 **Status:** CLOSED (pending CEO physical-device verification + push)
+=======
+**Status:** CLOSED
+
+---
+
+### 2026-04-25 — A-HOTFIX CI follow-up: Vitest grep flag + shared-journey env (PR #1)
+
+**Risk Tier:** P2 (CI / config only — zero product source touched)
+**Branch:** `hotfix/a-card5-clipping-integrity` (follow-up commit, NOT amend of `a420d8bd`)
+**Approved by:** CEO (session A-HOTFIX-CI-FIX-2026-04-25 spawn brief)
+**Executed by:** FE Lead agent (desktop6)
+**Files touched:** 2 — `.github/workflows/verify.yml`, `vite.config.js` (+ this change_log)
+
+**Description:**
+PR #1 had two failing CI checks. Product code on Vercel preview verified
+correct by CEO device test, so this commit only addresses CI/test config:
+
+1. *Contract Schema Validation job* — workflow ran
+   `npm run test:run -- --grep "contract"`. `--grep` is a Mocha/Jest-CLI
+   flag and was rejected by Vitest 2.x. Replaced with the Vitest-native
+   equivalent `-t "contract"` (testNamePattern). Added `--passWithNoTests`
+   so the job stays green while desktop6 has zero contract-tagged tests
+   (contracts currently validated upstream in famililook-shared / desktop3).
+
+2. *Run unit tests job* — three new `extraAction` tests in
+   `tests/components/ResultsStory.test.jsx` (lines 329, 345, 359) query
+   `role="navigation"` which only renders on the shared-journey path
+   (`VITE_USE_SHARED_JOURNEY === 'true'`). Local passes because the env
+   var is set in shell; CI failed because nothing set it. Belt-and-braces
+   fix: added `test.env.VITE_USE_SHARED_JOURNEY = 'true'` to `vite.config.js`
+   so `npm run test:run` produces identical results in any shell, AND
+   added `env: VITE_USE_SHARED_JOURNEY: 'true'` to the workflow's unit-test
+   and build steps for redundancy.
+
+**Constraint compliance:**
+- No product source modified (ResultsStory.jsx, SoloPage.jsx,
+  ChallengePage.jsx untouched).
+- No test logic modified (queries are correct; only environment wiring fixed).
+- Single follow-up commit, not an amend of `a420d8bd`.
+
+**Verification:**
+- `npm run test:run` (with shell env unset to simulate CI): 119 / 119 PASS.
+- `npm run build`: PASS.
+- `npm run test:run -- -t "contract" --passWithNoTests`: exits 0 (119 skipped).
+
+**Status:** CLOSED pending CI green on PR #1.
+>>>>>>> a1645713 (chore(desktop6): bump @famililook/shared to 0.10.0-rc.3)
 
 ---
 
